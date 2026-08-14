@@ -1,10 +1,10 @@
-// frontend/src/services/academicService.js
+// frontend/src/services/socioEconomicService.js
 import api from './api';
 
-export const academicService = {
+export const socioEconomicService = {
   getStats: async () => {
     try {
-      const res = await api.get('/academic/stats');
+      const res = await api.get('/socio-economic/stats');
       return res.data;
     } catch {
       return null;
@@ -13,7 +13,7 @@ export const academicService = {
 
   getOverview: async () => {
     try {
-      const res = await api.get('/academic/overview');
+      const res = await api.get('/socio-economic/overview');
       return res.data;
     } catch {
       return null;

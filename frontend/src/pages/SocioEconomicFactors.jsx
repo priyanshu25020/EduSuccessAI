@@ -23,6 +23,7 @@ import {
   HandHeart,
   FileSpreadsheet
 } from 'lucide-react';
+import { socioEconomicService } from '../services/socioEconomicService';
 import '../styles/attendance.css';
 import '../styles/learning-insights.css';
 
@@ -105,6 +106,23 @@ export default function SocioEconomicFactorsPage({ notify = () => {} }) {
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedStudentDetail, setSelectedStudentDetail] = useState(null);
   const [trendTimeframe, setTrendTimeframe] = useState('This Month');
+
+  // Fetch live socio-economic data from backend API
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchSocioData() {
+      try {
+        const res = await socioEconomicService.getOverview();
+        if (isMounted && res) {
+          // Loaded socio-economic overview
+        }
+      } catch (e) {
+        // Fallback to initial state
+      }
+    }
+    fetchSocioData();
+    return () => { isMounted = false; };
+  }, []);
 
   // Close dropdown on click outside
   useEffect(() => {

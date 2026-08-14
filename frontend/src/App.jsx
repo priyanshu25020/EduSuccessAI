@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Menu,
   Search,
@@ -35,13 +35,26 @@ import AttendancePage from "./pages/Attendance.jsx";
 import AcademicPerformancePage from "./pages/AcademicPerformance.jsx";
 import LearningBehaviorPage from "./pages/LearningBehavior.jsx";
 import SocioEconomicFactorsPage from "./pages/SocioEconomicFactors.jsx";
+import StudentsPage from "./pages/Students.jsx";
+import { dashboardService } from "./services/dashboardService";
 
-const students = [
-  ['1042', 'Rahul Patel', 'Computer Engineering', '87%', 'Attendance, Backlogs, Performance', 'RP'],
-  ['1078', 'Sneha Singh', 'Information Technology', '82%', 'Performance, Engagement, Backlogs', 'SS'],
-  ['1123', 'Aarav Mehta', 'Electronics Engineering', '79%', 'Attendance, Engagement', 'AM'],
-  ['1201', 'Pooja Sharma', 'Mechanical Engineering', '76%', 'Performance, Attendance', 'PS'],
-  ['1250', 'Karan Verma', 'Civil Engineering', '74%', 'Backlogs, Attendance', 'KV']
+// Fallback baseline students if backend is offline
+const fallbackStudents = [
+  ['STU1003', 'Aarav Mehta', 'Electronics Engg.', '93%', 'Low Attendance (<60%), Low CGPA (<4.0)', 'AM'],
+  ['STU1004', 'Pooja Sharma', 'Mechanical Engg.', '63%', 'Attendance Below 75%, Low CGPA', 'PS'],
+  ['STU1007', 'Vivek Yadav', 'Electronics Engg.', '71%', 'Attendance Below 75%, Low CGPA', 'VY'],
+  ['STU1008', 'Neha Patel', 'Mechanical Engg.', '100%', 'Low Attendance (<60%), 4 Backlogs', 'NP']
+];
+
+const allInitialStudents = [
+  ['STU1001', 'Rahul Patel', 'CE2021001', 'Computer Engg.', 'Semester 4', '8%', 'Low', '87%', '5.8', '2', 'Active', 'RP'],
+  ['STU1002', 'Sneha Singh', 'IT2021002', 'Information Tech.', 'Semester 4', '8%', 'Low', '92%', '6.2', '1', 'Active', 'SS'],
+  ['STU1003', 'Aarav Mehta', 'EE2021003', 'Electronics Engg.', 'Semester 4', '93%', 'High', '45%', '3.65', '3', 'Active', 'AM'],
+  ['STU1004', 'Pooja Sharma', 'ME2021004', 'Mechanical Engg.', 'Semester 4', '63%', 'High', '68%', '3.89', '2', 'Active', 'PS'],
+  ['STU1005', 'Karan Verma', 'CE2021005', 'Computer Engg.', 'Semester 6', '50%', 'Medium', '83%', '4.12', '3', 'Active', 'KV'],
+  ['STU1006', 'Anjali Desai', 'IT2021006', 'Information Tech.', 'Semester 6', '0%', 'Low', '90%', '8.45', '0', 'Active', 'AD'],
+  ['STU1007', 'Vivek Yadav', 'EE2021007', 'Electronics Engg.', 'Semester 6', '71%', 'High', '72%', '3.78', '2', 'Active', 'VY'],
+  ['STU1008', 'Neha Patel', 'ME2021008', 'Mechanical Engg.', 'Semester 6', '100%', 'High', '30%', '3.42', '4', 'Active', 'NP']
 ];
 
 const nav = [
@@ -82,20 +95,16 @@ const nav = [
   ]
 ];
 
-const risk = [
-  ['Low Risk', '3,780', '69.8%', 'low'],
-  ['Medium Risk', '1,120', '20.7%', 'medium'],
-  ['High Risk', '520', '9.6%', 'high']
-];
-
-function App() {
-  const [active, setActive] = useState('Attendance');
+export default function App() {
+  const [active, setActive] = useState('Dashboard');
   const [query, setQuery] = useState('');
   const [toast, setToast] = useState('');
   const [dateOpen, setDateOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [date, setDate] = useState('13 May 2025');
   const [selectedCard, setSelectedCard] = useState('');
+  const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardPage, setDashboardPage] = useState(1);
 
   const notify = (message) => {
     setToast(message);
@@ -108,16 +117,108 @@ function App() {
     window.setTimeout(() => setSelectedCard(''), 600);
   };
 
+  // Fetch real-time dashboard data from Backend
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchStats() {
+      try {
+        const data = await dashboardService.getStats();
+        if (isMounted && data) {
+          setDashboardData(data);
+        }
+      } catch (err) {
+        console.warn('Dashboard fetch error:', err);
+      }
+    }
+    fetchStats();
+    return () => {
+      isMounted = false;
+    };
+  }, [active]);
+
+  // Dynamic Values
+  const totalCount = dashboardData?.stats?.totalStudents?.value || '8';
+  const lowCount = dashboardData?.stats?.lowRisk?.value || '3';
+  const lowPct = dashboardData?.stats?.lowRisk?.percentage || '37.5%';
+  const medCount = dashboardData?.stats?.mediumRisk?.value || '1';
+  const medPct = dashboardData?.stats?.mediumRisk?.percentage || '12.5%';
+  const highCount = dashboardData?.stats?.highRisk?.value || '4';
+  const highPct = dashboardData?.stats?.highRisk?.percentage || '50.0%';
+
+  const risk = [
+    ['Low Risk', lowCount, lowPct, 'low'],
+    ['Medium Risk', medCount, medPct, 'medium'],
+    ['High Risk', highCount, highPct, 'high']
+  ];
+
+  const donutGradient = dashboardData?.donutGradient
+    ? `conic-gradient(#38bf58 0 ${dashboardData.donutGradient.lowPct}%, #ffad12 ${dashboardData.donutGradient.lowPct}% ${dashboardData.donutGradient.lowPct + dashboardData.donutGradient.mediumPct}%, #ff444a ${dashboardData.donutGradient.lowPct + dashboardData.donutGradient.mediumPct}% 100%)`
+    : 'conic-gradient(#38bf58 0 37.5%, #ffad12 37.5% 50%, #ff444a 50% 100%)';
+
+  const riskFactorsList = dashboardData?.topRiskFactors
+    ? [
+        [dashboardData.topRiskFactors[0]?.factor || 'Low Attendance (<75%)', dashboardData.topRiskFactors[0]?.impact || '50%', Users],
+        [dashboardData.topRiskFactors[1]?.factor || 'Academic Performance (<5 CGPA)', dashboardData.topRiskFactors[1]?.impact || '63%', BookOpen],
+        [dashboardData.topRiskFactors[2]?.factor || 'Active Backlogs', dashboardData.topRiskFactors[2]?.impact || '88%', BriefcaseBusiness],
+        [dashboardData.topRiskFactors[3]?.factor || 'Low Learning Engagement', dashboardData.topRiskFactors[3]?.impact || '50%', BrainCircuit],
+        [dashboardData.topRiskFactors[4]?.factor || 'Financial Difficulty', dashboardData.topRiskFactors[4]?.impact || '38%', IndianRupee]
+      ]
+    : [
+        ['Low Attendance', '50%', Users],
+        ['Academic Performance', '63%', BookOpen],
+        ['Backlogs', '88%', BriefcaseBusiness],
+        ['Low Learning Engagement', '50%', BrainCircuit],
+        ['Financial Difficulty', '38%', IndianRupee]
+      ];
+
+  const studentRows = useMemo(() => {
+    if (dashboardData?.highRiskStudents && dashboardData.highRiskStudents.length > 0) {
+      return dashboardData.highRiskStudents.map((s) => [
+        s.id,
+        s.name,
+        s.dept,
+        s.riskScore,
+        s.factors,
+        s.initials || s.name.slice(0, 2).toUpperCase()
+      ]);
+    }
+    return fallbackStudents;
+  }, [dashboardData]);
+
   const shown = useMemo(
-    () => students.filter((s) => s.join(' ').toLowerCase().includes(query.toLowerCase())),
-    [query]
+    () => studentRows.filter((s) => s.join(' ').toLowerCase().includes(query.toLowerCase())),
+    [studentRows, query]
   );
+
+  const alerts = dashboardData?.alerts || [
+    {
+      id: 'ALT-1',
+      icon: '⚠',
+      title: 'High Risk Alert',
+      text: '4 students (Aarav Mehta, Pooja Sharma...) have high dropout risk.',
+      time: 'Just now'
+    },
+    {
+      id: 'ALT-2',
+      icon: '⚠',
+      title: 'Attendance Alert',
+      text: '4 students have attendance below 75%.',
+      time: '10 min ago'
+    },
+    {
+      id: 'ALT-3',
+      icon: '♧',
+      title: 'Intervention Due',
+      text: '5 personalized interventions recommended.',
+      time: '1 hour ago'
+    }
+  ];
 
   return (
     <div className="app-shell">
       {/* Sidebar Navigation */}
       <aside className="side">
-        <div className="logo" onClick={() => setActive('Attendance')} style={{ cursor: 'pointer' }}>
+        <div className="logo" onClick={() => setActive('Dashboard')} style={{ cursor: 'pointer' }}>
           <span className="cap">◆</span>
           <div>
             <b>EduSuccess AI</b>
@@ -223,17 +324,16 @@ function App() {
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
               >
                 <Bell />
-                <i>8</i>
+                <i>{alerts.length}</i>
               </button>
               {notificationsOpen && (
                 <div className="notify-panel">
-                  <b>Notifications</b>
-                  <p>
-                    <strong>High risk alert</strong> 3 students need attention.
-                  </p>
-                  <p>
-                    <strong>Attendance update</strong> Attendance data for 13 May 2025 synced.
-                  </p>
+                  <b>Notifications ({alerts.length})</b>
+                  {alerts.map((al) => (
+                    <p key={al.id || al.title}>
+                      <strong>{al.title}</strong> {al.text}
+                    </p>
+                  ))}
                   <button
                     onClick={() => {
                       setNotificationsOpen(false);
@@ -264,8 +364,8 @@ function App() {
           {active === 'Academic Performance' && <AcademicPerformancePage notify={notify} />}
           {active === 'Learning Behavior' && <LearningBehaviorPage notify={notify} />}
           {active === 'Socio-economic Factors' && <SocioEconomicFactorsPage notify={notify} />}
-          {active === 'Risk Overview' && <RiskOverview notify={notify} />}
-          {active === 'Students' && <StudentsPage notify={notify} />}
+          {active === 'Risk Overview' && <RiskOverview notify={notify} dashboardData={dashboardData} />}
+          {active === 'Students' && <StudentsPage notify={notify} dashboardData={dashboardData} />}
 
           {/* Default Dashboard */}
           <div className={['Risk Overview', 'Students', 'Attendance', 'Academic Performance', 'Learning Behavior', 'Socio-economic Factors'].includes(active) ? 'dashboard-hidden' : ''}>
@@ -286,7 +386,7 @@ function App() {
             <div className="summary">
               <Stat
                 title="Total Students"
-                value="5,420"
+                value={totalCount}
                 note="↑ 5.4%"
                 icon={<Users />}
                 color="blue"
@@ -295,8 +395,8 @@ function App() {
               />
               <Stat
                 title="Low Risk"
-                value="3,780"
-                extra="(69.8%)"
+                value={lowCount}
+                extra={`(${lowPct})`}
                 note="↑ 3.2%"
                 icon={<ShieldCheck />}
                 color="green"
@@ -305,8 +405,8 @@ function App() {
               />
               <Stat
                 title="Medium Risk"
-                value="1,120"
-                extra="(20.7%)"
+                value={medCount}
+                extra={`(${medPct})`}
                 note="↓ 1.1%"
                 icon={<AlertTriangle />}
                 color="amber"
@@ -315,8 +415,8 @@ function App() {
               />
               <Stat
                 title="High Risk"
-                value="520"
-                extra="(9.6%)"
+                value={highCount}
+                extra={`(${highPct})`}
                 note="↓ 2.1%"
                 icon={<ShieldCheck />}
                 color="red"
@@ -327,9 +427,9 @@ function App() {
 
             <div className="analysis">
               <Panel title="Risk Distribution" cls="distribution">
-                <div className="donut">
+                <div className="donut" style={{ background: donutGradient }}>
                   <div>
-                    <b>69.8%</b>
+                    <b>{lowPct}</b>
                   </div>
                 </div>
                 <div className="risk-list">
@@ -361,20 +461,20 @@ function App() {
                   </g>
                   <g className="axis">
                     <text x="12" y="230">0</text>
-                    <text x="0" y="180">1000</text>
-                    <text x="0" y="130">2000</text>
-                    <text x="0" y="80">3000</text>
-                    <text x="0" y="80">4000</text>
+                    <text x="0" y="180">2</text>
+                    <text x="0" y="130">4</text>
+                    <text x="0" y="80">6</text>
+                    <text x="0" y="30">8</text>
                     <text x="45" y="243">Jan</text>
                     <text x="137" y="243">Feb</text>
                     <text x="232" y="243">Mar</text>
                     <text x="327" y="243">Apr</text>
                     <text x="422" y="243">May</text>
                   </g>
-                  <polyline className="l1" points="48,72 135,62 230,52 325,40 420,27" />
-                  <polyline className="l2" points="48,155 135,160 230,164 325,169 420,174" />
+                  <polyline className="l1" points="48,150 135,130 230,110 325,90 420,70" />
+                  <polyline className="l2" points="48,165 135,170 230,175 325,180 420,185" />
                   <polyline className="l3" points="48,195 135,198 230,201 325,204 420,207" />
-                  {[[48, 72], [135, 62], [230, 52], [325, 40], [420, 27]].map((p, i) => (
+                  {[[48, 150], [135, 130], [230, 110], [325, 90], [420, 70]].map((p, i) => (
                     <circle className="gdot" cx={p[0]} cy={p[1]} r="4" key={i} />
                   ))}
                 </svg>
@@ -383,13 +483,7 @@ function App() {
 
               <section className="panel factors">
                 <h3>Top Risk Factors</h3>
-                {[
-                  ['Low Attendance', '72%', Users],
-                  ['Academic Performance', '65%', BookOpen],
-                  ['Backlogs', '48%', BriefcaseBusiness],
-                  ['Low Learning Engagement', '41%', BrainCircuit],
-                  ['Financial Difficulty', '28%', IndianRupee]
-                ].map(([n, v, Icon]) => (
+                {riskFactorsList.map(([n, v, Icon]) => (
                   <div className="factor" key={n}>
                     <span>
                       <Icon />
@@ -411,7 +505,7 @@ function App() {
                 title="High Risk Students"
                 cls="table-panel"
                 action="View All Students"
-                onAction={() => notify('Showing all high-risk students.')}
+                onAction={() => setActive('Students')}
               >
                 <table>
                   <thead>
@@ -426,7 +520,7 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {shown.map((s) => (
+                    {shown.slice((dashboardPage - 1) * 5, dashboardPage * 5).map((s) => (
                       <tr key={s[0]}>
                         <td>{s[0]}</td>
                         <td>
@@ -447,7 +541,7 @@ function App() {
                         <td>
                           <button
                             className="view"
-                            onClick={() => notify('Opening student risk profile.')}
+                            onClick={() => notify(`Opening risk profile for ${s[1]} (${s[0]}).`)}
                           >
                             <Eye />
                           </button>
@@ -457,11 +551,36 @@ function App() {
                   </tbody>
                 </table>
                 <footer>
-                  Showing 1 to {shown.length} of 520 students{' '}
+                  Showing {shown.length > 0 ? (dashboardPage - 1) * 5 + 1 : 0} to{' '}
+                  {Math.min(dashboardPage * 5, shown.length)} of {shown.length} students{' '}
                   <span className="pagination">
-                    <ChevronLeft />
-                    <b>1</b>2　3　…　104
-                    <ChevronRight />
+                    <button
+                      onClick={() => setDashboardPage((p) => Math.max(1, p - 1))}
+                      disabled={dashboardPage === 1}
+                      style={{ border: 'none', background: 'none', cursor: dashboardPage === 1 ? 'not-allowed' : 'pointer', opacity: dashboardPage === 1 ? 0.3 : 1 }}
+                    >
+                      <ChevronLeft />
+                    </button>
+                    {Array.from({ length: Math.ceil(shown.length / 5) || 1 }, (_, i) => i + 1).map((pageNum) => (
+                      <b
+                        key={pageNum}
+                        onClick={() => setDashboardPage(pageNum)}
+                        style={{
+                          cursor: 'pointer',
+                          background: dashboardPage === pageNum ? '#7263f9' : '#eef2ff',
+                          color: dashboardPage === pageNum ? '#fff' : '#1e293b'
+                        }}
+                      >
+                        {pageNum}
+                      </b>
+                    ))}
+                    <button
+                      onClick={() => setDashboardPage((p) => Math.min(Math.ceil(shown.length / 5) || 1, p + 1))}
+                      disabled={dashboardPage >= (Math.ceil(shown.length / 5) || 1)}
+                      style={{ border: 'none', background: 'none', cursor: dashboardPage >= (Math.ceil(shown.length / 5) || 1) ? 'not-allowed' : 'pointer', opacity: dashboardPage >= (Math.ceil(shown.length / 5) || 1) ? 0.3 : 1 }}
+                    >
+                      <ChevronRight />
+                    </button>
                   </span>
                 </footer>
               </Panel>
@@ -472,24 +591,15 @@ function App() {
                     Recent Alerts{' '}
                     <button onClick={() => notify('All alerts opened.')}>View All</button>
                   </h3>
-                  <Alert
-                    icon="⚠"
-                    title="High Risk Alert"
-                    text="Student ID 1042 has a high dropout risk (87%)."
-                    time="2 min ago"
-                  />
-                  <Alert
-                    icon="⚠"
-                    title="Attendance Alert"
-                    text="15 students have attendance below 60%."
-                    time="25 min ago"
-                  />
-                  <Alert
-                    icon="♧"
-                    title="Intervention Due"
-                    text="8 interventions are pending follow-up."
-                    time="1 hour ago"
-                  />
+                  {alerts.map((al) => (
+                    <Alert
+                      key={al.id || al.title}
+                      icon={al.icon}
+                      title={al.title}
+                      text={al.text}
+                      time={al.time}
+                    />
+                  ))}
                   <button
                     className="all-alerts"
                     onClick={() => notify('Opening all alerts.')}
@@ -522,151 +632,23 @@ function App() {
   );
 }
 
-function StudentsPage({ notify }) {
-  const all = [
-    ...students,
-    ['1306', 'Anjali Desai', 'Information Tech.', '33%', 'Performance', 'AD'],
-    ['1310', 'Vivek Yadav', 'Electronics Engg.', '68%', 'Attendance', 'VY'],
-    ['1318', 'Neha Patel', 'Mechanical Engg.', '28%', 'Backlogs', 'NP']
+
+
+function RiskOverview({ notify, dashboardData }) {
+  const highStudents = dashboardData?.highRiskStudents || [
+    { id: 'STU1003', name: 'Aarav Mehta', initials: 'AM', factors: 'Low Attendance (<60%), Low CGPA' },
+    { id: 'STU1004', name: 'Pooja Sharma', initials: 'PS', factors: 'Attendance Below 75%, Low CGPA' },
+    { id: 'STU1007', name: 'Vivek Yadav', initials: 'VY', factors: 'Attendance Below 75%, Low CGPA' },
+    { id: 'STU1008', name: 'Neha Patel', initials: 'NP', factors: 'Low Attendance (<60%), 4 Backlogs' }
   ];
 
-  return (
-    <div className="students-page">
-      <div className="student-head">
-        <div>
-          <h1>
-            <Users /> Students
-          </h1>
-          <p>Dashboard　›　Students</p>
-          <small>Manage and view all student records in one place. Add new students or import in bulk using Excel.</small>
-        </div>
-        <span>
-          <button onClick={() => notify('Add student form opened.')}>＋ Add Student</button>
-          <button onClick={() => notify('Excel import opened.')}>▣ Import from Excel</button>
-          <button onClick={() => notify('Student records exported.')}>⇩ Export</button>
-        </span>
-      </div>
-
-      <section className="student-box">
-        <div className="student-filters">
-          <label>
-            <Search />
-            <input placeholder="Search by name, roll no., or student ID..." />
-          </label>
-          {['All Departments', 'All Semesters', 'All Risk Levels', 'All Status'].map((x) => (
-            <button key={x}>{x}　⌄</button>
-          ))}
-          <button onClick={() => notify('Filters applied.')}>⚱ Filters</button>
-          <a onClick={() => notify('Filters cleared.')}>Clear All</a>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              {[
-                '□',
-                'Student ID',
-                'Student Name',
-                'Roll No.',
-                'Department',
-                'Semester',
-                'Risk Score',
-                'Risk Level',
-                'Attendance',
-                'CGPA',
-                'Backlogs',
-                'Status',
-                'Action'
-              ].map((x) => (
-                <th key={x}>{x}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {all.map((s, i) => {
-              let risk =
-                +s[3].slice(0, -1) > 70
-                  ? 'High'
-                  : +s[3].slice(0, -1) > 55
-                  ? 'Medium'
-                  : 'Low';
-              return (
-                <tr key={s[0]}>
-                  <td>□</td>
-                  <td>STU{1001 + i}</td>
-                  <td>
-                    <span className="person">{s[5]}</span>
-                    {s[1]}
-                  </td>
-                  <td>CE20210{i + 1}</td>
-                  <td>{s[2]}</td>
-                  <td>{i < 5 ? 4 : 6}</td>
-                  <td>
-                    {s[3]}{' '}
-                    <em className="score">
-                      <i style={{ width: s[3] }} />
-                    </em>
-                  </td>
-                  <td>
-                    <mark className={risk.toLowerCase()}>{risk}</mark>
-                  </td>
-                  <td>
-                    {56 + i * 5}%{' '}
-                    <em className="score">
-                      <i style={{ width: 56 + i * 5 + '%' }} />
-                    </em>
-                  </td>
-                  <td>{(5.4 + i * 0.4).toFixed(1)}</td>
-                  <td>{i % 4}</td>
-                  <td>
-                    <mark className="low">Active</mark>
-                  </td>
-                  <td>
-                    <button className="view" onClick={() => notify('Opening ' + s[1])}>
-                      <Eye />
-                    </button>
-                    　⋮
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <footer>
-          Showing 1 to 8 of 5,420 results{' '}
-          <span>
-            Rows per page:　 10　⌄　　‹　 <b>1</b>　2　3　…　542　›
-          </span>
-        </footer>
-      </section>
-
-      <div className="student-stats">
-        {[
-          ['Total Students', '5,420', '100% of total enrollment', 'purple'],
-          ['Active Students', '4,890', '90.2% of total students', 'green'],
-          ['Inactive Students', '320', '5.9% of total students', 'amber'],
-          ['At Risk Students', '1,640', '30.2% of total students', 'red'],
-          ['Avg. CGPA', '6.32', 'Across all students', 'blue']
-        ].map((x) => (
-          <section className={x[3]} key={x[0]}>
-            <b>{x[0]}</b>
-            <h2>{x[1]}</h2>
-            <small>{x[2]}</small>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function RiskOverview({ notify }) {
-  const rows = [
-    ['Low Attendance', '2,674 (49.3%)', '8.7 / 10', 'High'],
-    ['Academic Performance', '2,132 (39.3%)', '7.6 / 10', 'High'],
-    ['Backlogs', '1,856 (34.2%)', '6.9 / 10', 'Medium'],
-    ['Low Learning Engagement', '1,432 (26.4%)', '6.1 / 10', 'Medium'],
-    ['Financial Difficulty', '1,025 (18.9%)', '5.3 / 10', 'Low']
-  ];
+  const total = dashboardData?.stats?.totalStudents?.value || '8';
+  const highCount = dashboardData?.stats?.highRisk?.value || '4';
+  const highPct = dashboardData?.stats?.highRisk?.percentage || '50.0%';
+  const medCount = dashboardData?.stats?.mediumRisk?.value || '1';
+  const medPct = dashboardData?.stats?.mediumRisk?.percentage || '12.5%';
+  const lowCount = dashboardData?.stats?.lowRisk?.value || '3';
+  const lowPct = dashboardData?.stats?.lowRisk?.percentage || '37.5%';
 
   return (
     <div className="risk-page">
@@ -693,16 +675,16 @@ function RiskOverview({ notify }) {
           <h3>Risk Distribution by Department</h3>
           <div className="dept-donut">
             <b>
-              5,420<small>Total</small>
+              {total}<small>Total</small>
             </b>
           </div>
           <ul>
             {[
-              'Computer Engineering　1,538',
-              'Information Technology　1,338',
-              'Electronics Engineering　1,025',
-              'Mechanical Engineering　895',
-              'Civil Engineering　624'
+              'Computer Engineering　2',
+              'Information Technology　2',
+              'Electronics Engineering　2',
+              'Mechanical Engineering　2',
+              'Civil Engineering　0'
             ].map((x, i) => (
               <li key={x}>
                 <i className={'d' + i} />
@@ -716,9 +698,9 @@ function RiskOverview({ notify }) {
         <section className="risk-box breakdown">
           <h3>Risk Level Breakdown</h3>
           {[
-            ['High Risk', '520 (9.6%)', 'red'],
-            ['Medium Risk', '1,120 (20.7%)', 'amber'],
-            ['Low Risk', '3,780 (69.8%)', 'green'],
+            ['High Risk', `${highCount} (${highPct})`, 'red'],
+            ['Medium Risk', `${medCount} (${medPct})`, 'amber'],
+            ['Low Risk', `${lowCount} (${lowPct})`, 'green'],
             ['Not Assessed', '0 (0.0%)', 'grey']
           ].map((x) => (
             <div key={x[0]}>
@@ -737,16 +719,16 @@ function RiskOverview({ notify }) {
             Students Needing Attention{' '}
             <button onClick={() => notify('All attention students opened.')}>View All</button>
           </h3>
-          {students.map((s, i) => (
-            <div key={s[0]}>
-              <span className="person">{s[5]}</span>
+          {highStudents.map((s, i) => (
+            <div key={s.id || i}>
+              <span className="person">{s.initials || 'ST'}</span>
               <b>
-                {s[1]}
-                <small>STU{i + 1001}</small>
+                {s.name}
+                <small>{s.id}</small>
               </b>
-              <mark>{i % 2 ? 'Medium' : 'High'}</mark>
+              <mark>High</mark>
               <label>
-                {i % 2 ? 'Academic Performance' : 'Low Attendance'}
+                {s.factors || 'Low Attendance / CGPA'}
                 <small>Risk Reason</small>
               </label>
             </div>
@@ -754,109 +736,33 @@ function RiskOverview({ notify }) {
           <a onClick={() => notify('All students opened.')}>View All Students　→</a>
         </section>
       </div>
-
-      <section className="risk-box factor-table">
-        <h3>Risk by Main Factors</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Risk Factor</th>
-              <th>Affected Students</th>
-              <th>Avg Impact Score</th>
-              <th>Level</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r[0]}>
-                <td>●　{r[0]}</td>
-                <td>{r[1]}</td>
-                <td>
-                  {r[2]}　
-                  <em>
-                    <i style={{ width: 88 - i * 13 + '%' }} />
-                  </em>
-                </td>
-                <td>
-                  <mark className={r[3].toLowerCase()}>{r[3]}</mark>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <a onClick={() => notify('All risk factors opened.')}>View All Risk Factors　→</a>
-      </section>
-
-      <div className="risk-bottom">
-        <section className="risk-box gauge">
-          <h3>Risk Score Range</h3>
-          <b>
-            6.8
-            <small>
-              Average Risk Score
-              <br />
-              out of 10
-            </small>
-          </b>
-        </section>
-        <section className="risk-box trend-summary">
-          <h3>Trend Summary</h3>
-          <p>
-            ↗　Students moving to lower risk　 <b>↑ 12.4%</b>
-          </p>
-          <p>
-            ↓　Students moving to higher risk　 <b>↓ 6.8%</b>
-          </p>
-          <p>
-            ⌁　Overall risk score change　 <b>↓ 2.1%</b>
-          </p>
-        </section>
-        <section className="risk-box heat">
-          <h3>
-            Department Risk Heatmap{' '}
-            <button onClick={() => notify('Full heatmap opened.')}>View Full Heatmap</button>
-          </h3>
-          {[
-            'Computer Engineering',
-            'Information Technology',
-            'Electronics',
-            'Mechanical',
-            'Civil Engineering'
-          ].map((x, i) => (
-            <p key={x}>
-              {x}
-              <i>{726 - i * 80}</i>
-              <i>{512 - i * 50}</i>
-              <i>{210 - i * 30}</i>
-              <i>{90 - i * 12}</i>
-            </p>
-          ))}
-        </section>
-      </div>
     </div>
   );
 }
 
-function Stat(p) {
+function Stat({ title, value, extra, note, icon, color, selected, onClick }) {
   return (
-    <section className={'stat ' + p.color}>
+    <article
+      className={`stat ${color} ${selected ? 'selected' : ''}`}
+      onClick={onClick}
+    >
       <div>
-        <small>{p.title}</small>
+        <small>{title}</small>
         <h2>
-          {p.value} <em>{p.extra}</em>
+          {value} {extra && <em>{extra}</em>}
         </h2>
         <p>
-          {p.note} <span>from last month</span>
+          <span>{note}</span> from last month
         </p>
       </div>
-      <i>{p.icon}</i>
-    </section>
+      <i>{icon}</i>
+    </article>
   );
 }
 
-function Panel({ title, children, cls = '', action, onAction }) {
+function Panel({ title, cls = '', action, onAction, children }) {
   return (
-    <section className={'panel ' + cls}>
+    <section className={`panel ${cls}`}>
       <h3>
         {title}
         {action && <button onClick={onAction}>{action}</button>}
@@ -872,11 +778,9 @@ function Alert({ icon, title, text, time }) {
       <i>{icon}</i>
       <span>
         <b>{title}</b>
-        <small>{text}</small>
+        {text}
+        <small>{time}</small>
       </span>
-      <time>{time}</time>
     </div>
   );
 }
-
-export default App;

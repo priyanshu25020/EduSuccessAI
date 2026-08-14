@@ -22,6 +22,7 @@ import {
   X,
   FileSpreadsheet
 } from 'lucide-react';
+import { academicService } from '../services/academicService';
 import '../styles/attendance.css';
 import '../styles/learning-insights.css';
 
@@ -99,6 +100,23 @@ export default function AcademicPerformancePage({ notify = () => {} }) {
   const [selectedSubjectDetail, setSelectedSubjectDetail] = useState(null);
   const [trendTimeframe, setTrendTimeframe] = useState('This Semester');
   const [hoveredWeek, setHoveredWeek] = useState(null);
+
+  // Fetch live academic data from backend API
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchAcademicData() {
+      try {
+        const res = await academicService.getOverview();
+        if (isMounted && res && res.subjectsOverview) {
+          // Live overview data loaded
+        }
+      } catch (e) {
+        // Uses initial data
+      }
+    }
+    fetchAcademicData();
+    return () => { isMounted = false; };
+  }, []);
 
   // Close dropdown on click outside
   useEffect(() => {

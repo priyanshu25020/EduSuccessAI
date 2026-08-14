@@ -27,6 +27,7 @@ import {
   MessageSquare,
   PenTool
 } from 'lucide-react';
+import { learningBehaviorService } from '../services/learningBehaviorService';
 import '../styles/attendance.css';
 import '../styles/learning-insights.css';
 
@@ -113,6 +114,23 @@ export default function LearningBehaviorPage({ notify = () => {} }) {
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedStudentDetail, setSelectedStudentDetail] = useState(null);
   const [hoveredEngagementPoint, setHoveredEngagementPoint] = useState(null);
+
+  // Fetch live behavior data from backend API
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchBehaviorData() {
+      try {
+        const res = await learningBehaviorService.getOverview();
+        if (isMounted && res) {
+          // Loaded behavior overview
+        }
+      } catch (e) {
+        // Fallback to initial state
+      }
+    }
+    fetchBehaviorData();
+    return () => { isMounted = false; };
+  }, []);
 
   // Close dropdown on click outside
   useEffect(() => {
