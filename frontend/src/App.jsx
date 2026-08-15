@@ -29,13 +29,16 @@ import {
   BriefcaseBusiness,
   IndianRupee,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Lock
 } from "lucide-react";
 import AttendancePage from "./pages/Attendance.jsx";
 import AcademicPerformancePage from "./pages/AcademicPerformance.jsx";
 import LearningBehaviorPage from "./pages/LearningBehavior.jsx";
 import SocioEconomicFactorsPage from "./pages/SocioEconomicFactors.jsx";
 import StudentsPage from "./pages/Students.jsx";
+import BlockchainAuditPage from "./pages/BlockchainAudit.jsx";
+import RiskPredictionPage from "./pages/RiskPrediction.jsx";
 import { dashboardService } from "./services/dashboardService";
 
 // Fallback baseline students if backend is offline
@@ -79,6 +82,7 @@ const nav = [
     [
       [ChartNoAxesCombined, 'Impact Tracking'],
       [FileBarChart, 'Reports'],
+      [Lock, 'Blockchain & Audit Trail'],
       [Download, 'Export Data']
     ]
   ]
@@ -444,9 +448,21 @@ export default function App() {
               globalDate={date}
             />
           )}
+          {active === 'Blockchain & Audit Trail' && (
+            <BlockchainAuditPage
+              notify={notify}
+              globalSearchQuery={query}
+            />
+          )}
+          {active === 'Risk Prediction' && (
+            <RiskPredictionPage
+              notify={notify}
+              globalSearchQuery={query}
+            />
+          )}
 
           {/* Default Dashboard */}
-          <div className={['Risk Overview', 'Students', 'Attendance', 'Academic Performance', 'Learning Behavior', 'Socio-economic Factors'].includes(active) ? 'dashboard-hidden' : ''}>
+          <div className={['Risk Overview', 'Students', 'Attendance', 'Academic Performance', 'Learning Behavior', 'Socio-economic Factors', 'Blockchain & Audit Trail', 'Risk Prediction'].includes(active) ? 'dashboard-hidden' : ''}>
             <div className="welcome">
               <div>
                 <h1>Welcome back, Admin! 👋</h1>

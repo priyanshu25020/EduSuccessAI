@@ -10,6 +10,8 @@ const behaviorRoutes = require('./routes/behaviorRoutes');
 const socioEconomicRoutes = require('./routes/socioEconomicRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const blockchainRoutes = require('./routes/blockchainRoutes');
+const predictionRoutes = require('./routes/predictionRoutes');
 
 const app = express();
 
@@ -42,6 +44,8 @@ app.use('/api/learning-behavior', behaviorRoutes);
 app.use('/api/socio-economic', socioEconomicRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/blockchain', blockchainRoutes);
+app.use('/api/prediction', predictionRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ message: 'Route not found' });
