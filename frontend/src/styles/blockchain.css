@@ -899,3 +899,134 @@
   box-shadow: 0 4px 12px rgba(82, 71, 230, 0.08) !important;
 }
 
+/* ========================================================
+   FUTURISTIC AI & BLOCKCHAIN RISK CARDS
+======================================================== */
+.ai-risk-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.ai-futuristic-card {
+  background: #ffffff;
+  border: 1px solid #eef2f8;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.ai-futuristic-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(82, 71, 230, 0.1);
+  border-color: #cbd5e1;
+}
+
+.ai-futuristic-card.expanded {
+  border-color: #5247e6;
+  box-shadow: 0 12px 32px rgba(82, 71, 230, 0.15);
+}
+
+.ai-futuristic-card.high-risk {
+  border-left: 4px solid #ef4444;
+}
+
+.ai-futuristic-card.medium-risk {
+  border-left: 4px solid #f59e0b;
+}
+
+.ai-futuristic-card.low-risk {
+  border-left: 4px solid #10b981;
+}
+
+/* Dropout Probability Box (Matching User Image) */
+.ai-prob-box {
+  border-radius: 12px;
+  padding: 6px 14px;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 105px;
+  transition: all 0.2s ease;
+}
+
+.ai-prob-box.high {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+}
+
+.ai-prob-box.high .ai-prob-title {
+  color: #ef4444;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.ai-prob-box.high .ai-prob-val {
+  color: #ef4444;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.ai-prob-box.medium {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+.ai-prob-box.medium .ai-prob-title {
+  color: #d97706;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.ai-prob-box.medium .ai-prob-val {
+  color: #d97706;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.ai-prob-box.low {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.ai-prob-box.low .ai-prob-title {
+  color: #16a34a;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.ai-prob-box.low .ai-prob-val {
+  color: #16a34a;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.ai-blockchain-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #7c3aed;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+}
+
+

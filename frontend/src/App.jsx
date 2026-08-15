@@ -39,6 +39,8 @@ import SocioEconomicFactorsPage from "./pages/SocioEconomicFactors.jsx";
 import StudentsPage from "./pages/Students.jsx";
 import BlockchainAuditPage from "./pages/BlockchainAudit.jsx";
 import RiskPredictionPage from "./pages/RiskPrediction.jsx";
+import InterventionsPage from "./pages/Interventions.jsx";
+import AlertsNotificationsPage from "./pages/AlertsNotifications.jsx";
 import { dashboardService } from "./services/dashboardService";
 
 // Fallback baseline students if backend is offline
@@ -460,9 +462,21 @@ export default function App() {
               globalSearchQuery={query}
             />
           )}
+          {(active === 'Interventions' || active === 'Intervention Plans') && (
+            <InterventionsPage
+              notify={notify}
+              globalSearchQuery={query}
+            />
+          )}
+          {active === 'Alerts & Notifications' && (
+            <AlertsNotificationsPage
+              notify={notify}
+              globalSearchQuery={query}
+            />
+          )}
 
           {/* Default Dashboard */}
-          <div className={['Risk Overview', 'Students', 'Attendance', 'Academic Performance', 'Learning Behavior', 'Socio-economic Factors', 'Blockchain & Audit Trail', 'Risk Prediction'].includes(active) ? 'dashboard-hidden' : ''}>
+          <div className={['Risk Overview', 'Students', 'Attendance', 'Academic Performance', 'Learning Behavior', 'Socio-economic Factors', 'Blockchain & Audit Trail', 'Risk Prediction', 'Interventions', 'Intervention Plans', 'Alerts & Notifications'].includes(active) ? 'dashboard-hidden' : ''}>
             <div className="welcome">
               <div>
                 <h1>Welcome back, Admin! 👋</h1>

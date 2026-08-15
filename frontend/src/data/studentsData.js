@@ -49,7 +49,7 @@ const AVATAR_POOL = [
 export const ALL_78_STUDENTS = Array.from({ length: 78 }, (_, i) => {
   const deptObj = DEPTS[i % DEPTS.length];
   const rollIndex = String(Math.floor(i / DEPTS.length) + 1).padStart(3, '0');
-  const semester = i % 2 === 0 ? 4 : 6;
+  const semester = (i % 8) + 1;
   const section = i % 4 < 2 ? 'Section A' : 'Section B';
   const subject = deptObj.subjects[i % deptObj.subjects.length];
   const firstName = FIRST_NAMES[i % FIRST_NAMES.length];
