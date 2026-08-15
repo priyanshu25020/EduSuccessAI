@@ -27,7 +27,8 @@ import {
   ArrowRight,
   ShieldAlert,
   BarChart3,
-  Sparkles
+  Sparkles,
+  CheckCheck
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { attendanceService } from '../services/attendanceService';
@@ -100,7 +101,7 @@ export const calculateStudentMonthlyStats = (student, targetDate = '15 Aug 2026'
   };
 };
 
-// 8 Verified Students (Clean slate: ZERO initial fake data)
+// 8 Verified Students Base
 const INITIAL_STUDENTS = [
   { id: 'STU1001', rollNo: 'CE2021001', name: 'Rahul Patel', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80', initials: 'RP', dept: 'Computer Engg.', semester: 4, subject: 'Data Structures', section: 'Section A', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' },
   { id: 'STU1002', rollNo: 'IT2021002', name: 'Sneha Singh', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80', initials: 'SS', dept: 'Information Tech.', semester: 4, subject: 'Database Mgmt.', section: 'Section B', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' },
@@ -111,6 +112,50 @@ const INITIAL_STUDENTS = [
   { id: 'STU1007', rollNo: 'EE2021007', name: 'Vivek Yadav', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80', initials: 'VY', dept: 'Electronics Engg.', semester: 6, subject: 'Microprocessors', section: 'Section A', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' },
   { id: 'STU1008', rollNo: 'ME2021008', name: 'Neha Patel', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80', initials: 'NP', dept: 'Mechanical Engg.', semester: 6, subject: 'Machine Design', section: 'Section B', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' }
 ];
+
+// Helper to load persistent student records
+const getInitialStudentsWithPersistence = (activeDate = '15 Aug 2026') => {
+  try {
+    const savedStr = localStorage.getItem('edusuccess_attendance_history');
+    if (savedStr) {
+      const historyMap = JSON.parse(savedStr);
+      return INITIAL_STUDENTS.map((s) => {
+        const savedHistory = historyMap[s.rollNo] || historyMap[s.id] || s.attendanceHistory || {};
+        const dailyStatus = savedHistory[activeDate] || 'Not Marked';
+        const stats = calculateStudentMonthlyStats({ ...s, attendanceHistory: savedHistory }, activeDate);
+        return {
+          ...s,
+          attendanceHistory: savedHistory,
+          status: dailyStatus,
+          attendancePct: stats.pct,
+          attendedDays: stats.attendedDays,
+          markedDaysCount: stats.markedCount,
+          daysInMonth: stats.daysInMonth,
+          lastUpdated: stats.markedCount > 0 ? (savedHistory[activeDate] ? activeDate : '-') : '-'
+        };
+      });
+    }
+  } catch (err) {
+    console.warn('Persistence read warning:', err);
+  }
+  return INITIAL_STUDENTS;
+};
+
+// Helper to save persistent student records
+const saveStudentsPersistence = (students) => {
+  try {
+    const historyMap = {};
+    students.forEach((s) => {
+      const key = s.rollNo || s.id;
+      if (key) {
+        historyMap[key] = s.attendanceHistory || {};
+      }
+    });
+    localStorage.setItem('edusuccess_attendance_history', JSON.stringify(historyMap));
+  } catch (err) {
+    console.warn('Persistence save warning:', err);
+  }
+};
 
 export default function AttendancePage({ notify = () => {}, globalDate, setGlobalDate, globalSearchQuery = '' }) {
   // Calendar & Filter states
@@ -133,8 +178,8 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
   // Dropdown open controls
   const [openDropdown, setOpenDropdown] = useState(null);
 
-  // Student dataset & Selection
-  const [studentsList, setStudentsList] = useState(INITIAL_STUDENTS);
+  // Student dataset initialized with localStorage persistence
+  const [studentsList, setStudentsList] = useState(() => getInitialStudentsWithPersistence(date));
   const [selectedRowIds, setSelectedRowIds] = useState([]);
   const [activeActionMenuId, setActiveActionMenuId] = useState(null);
 
@@ -170,6 +215,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
   const fileInputRef = useRef(null);
 
   // Take Action state
+  const [actionType, setActionType] = useState('sms');
   const [actionCustomNote, setActionCustomNote] = useState('');
 
   // Synchronize calMonth and calYear whenever date changes
@@ -179,15 +225,15 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
     setCalYear(parsed.year);
   }, [date]);
 
-  // Fetch live records from backend API
+  // Fetch live records from backend API and sync with local persistence
   const loadData = async (activeDate = date) => {
     try {
       const response = await attendanceService.getRecords({ date: activeDate });
       if (response && response.data && response.data.length > 0) {
         setStudentsList((prev) => {
-          return response.data.map((r) => {
+          const updated = response.data.map((r) => {
             const existing = prev.find((p) => p.rollNo === r.rollNo || p.id === r.id);
-            const history = r.attendanceHistory || existing?.attendanceHistory || {};
+            const history = { ...(r.attendanceHistory || {}), ...(existing?.attendanceHistory || {}) };
             const dailyStatus = history[activeDate] || 'Not Marked';
             const stats = calculateStudentMonthlyStats({ ...r, attendanceHistory: history }, activeDate);
             return {
@@ -201,10 +247,12 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
               lastUpdated: stats.markedCount > 0 ? (history[activeDate] ? activeDate : '-') : '-'
             };
           });
+          saveStudentsPersistence(updated);
+          return updated;
         });
       }
     } catch (e) {
-      console.warn('Using local fallback for attendance:', e);
+      console.warn('Using local persistent storage for attendance:', e);
     }
   };
 
@@ -220,7 +268,8 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
         !e.target.closest('.att-action-btn') &&
         !e.target.closest('.att-actions') &&
         !e.target.closest('.att-time-select') &&
-        !e.target.closest('.att-row-menu')
+        !e.target.closest('.att-row-menu') &&
+        !e.target.closest('.att-bulk-action-bar')
       ) {
         setOpenDropdown(null);
         setActiveActionMenuId(null);
@@ -438,10 +487,51 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
     );
   };
 
-  // Real Dynamic Status Change
+  // MULTI-SELECTION BULK ATTENDANCE ACTION
+  const handleBulkStatusChange = async (newStatus) => {
+    if (selectedRowIds.length === 0) return;
+
+    setStudentsList((prev) => {
+      const updated = prev.map((s, idx) => {
+        const studentKey = s.rollNo && s.rollNo !== '-' ? String(s.rollNo) : (s.id && s.id !== '-' ? String(s.id) : `stu-idx-${idx}`);
+        if (selectedRowIds.includes(studentKey) || selectedRowIds.includes(s.rollNo) || selectedRowIds.includes(s.id)) {
+          const updatedHistory = { ...(s.attendanceHistory || {}), [date]: newStatus };
+          const stats = calculateStudentMonthlyStats({ ...s, attendanceHistory: updatedHistory }, date);
+          return {
+            ...s,
+            status: newStatus,
+            attendancePct: stats.pct,
+            attendedDays: stats.attendedDays,
+            markedDaysCount: stats.markedCount,
+            daysInMonth: stats.daysInMonth,
+            lastUpdated: date,
+            attendanceHistory: updatedHistory
+          };
+        }
+        return s;
+      });
+      saveStudentsPersistence(updated);
+      return updated;
+    });
+
+    // Sync each to backend
+    try {
+      const promises = selectedRowIds.map((key) =>
+        attendanceService.markAttendance({ rollNo: key, status: newStatus, date })
+      );
+      await Promise.all(promises);
+    } catch (e) {
+      console.warn('Backend bulk mark sync:', e);
+    }
+
+    notify(`Marked ${selectedRowIds.length} student(s) as "${newStatus}" on ${date}!`);
+    setSelectedRowIds([]);
+  };
+
+  // Single Quick Status Change
   const handleQuickStatusChange = async (targetKey, newStatus) => {
-    setStudentsList((prev) =>
-      prev.map((s, idx) => {
+    setStudentsList((prev) => {
+      const updated = prev.map((s, idx) => {
         const studentKey = s.rollNo && s.rollNo !== '-' ? String(s.rollNo) : (s.id && s.id !== '-' ? String(s.id) : `stu-idx-${idx}`);
         if (studentKey === targetKey || s.rollNo === targetKey || s.id === targetKey) {
           const prevStatusOnDate = s.attendanceHistory?.[date] || 'Not Marked';
@@ -465,8 +555,10 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
           };
         }
         return s;
-      })
-    );
+      });
+      saveStudentsPersistence(updated);
+      return updated;
+    });
     setActiveActionMenuId(null);
     try {
       await attendanceService.markAttendance({ rollNo: targetKey, status: newStatus, date });
@@ -483,8 +575,8 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
     const studentName = student ? student.name : markForm.rollNo;
     const targetDate = markForm.date || date;
 
-    setStudentsList((prev) =>
-      prev.map((s) => {
+    setStudentsList((prev) => {
+      const updated = prev.map((s) => {
         if (s.rollNo === markForm.rollNo || s.id === markForm.rollNo) {
           const updatedHistory = { ...(s.attendanceHistory || {}), [targetDate]: markForm.status };
           const stats = calculateStudentMonthlyStats({ ...s, attendanceHistory: updatedHistory }, targetDate);
@@ -502,8 +594,10 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
           };
         }
         return s;
-      })
-    );
+      });
+      saveStudentsPersistence(updated);
+      return updated;
+    });
 
     try {
       await attendanceService.markAttendance({
@@ -561,7 +655,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
     }
 
     setStudentsList((prev) => {
-      return prev.map((s) => {
+      const updated = prev.map((s) => {
         const matched = uploadPreview.find(
           (row) =>
             row['Enrollment No.'] === s.rollNo ||
@@ -590,6 +684,8 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
         }
         return s;
       });
+      saveStudentsPersistence(updated);
+      return updated;
     });
 
     setShowUploadModal(false);
@@ -986,6 +1082,126 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
             </button>
           </div>
 
+          {/* MULTI-SELECTION BULK ATTENDANCE ACTION BAR */}
+          {selectedRowIds.length > 0 && (
+            <div
+              className="att-bulk-action-bar"
+              style={{
+                margin: '12px 18px 0 18px',
+                padding: '10px 14px',
+                background: 'linear-gradient(135deg, #eff0fe, #f5f3ff)',
+                border: '1.5px solid #c7d2fe',
+                borderRadius: '10px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '10px',
+                boxShadow: '0 4px 14px rgba(99, 85, 237, 0.12)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    background: '#5247e6',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '11px',
+                    padding: '3px 8px',
+                    borderRadius: '6px'
+                  }}
+                >
+                  {selectedRowIds.length} Selected
+                </span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#1e1b4b' }}>
+                  Mark Attendance on {date}:
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleBulkStatusChange('Present')}
+                  style={{
+                    background: '#10b981',
+                    color: '#fff',
+                    border: 0,
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  <CheckCircle2 size={14} /> Mark Present
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleBulkStatusChange('Absent')}
+                  style={{
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 0,
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(239, 68, 68, 0.3)'
+                  }}
+                >
+                  <XCircle size={14} /> Mark Absent
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleBulkStatusChange('Late')}
+                  style={{
+                    background: '#f59e0b',
+                    color: '#fff',
+                    border: 0,
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)'
+                  }}
+                >
+                  <Clock3 size={14} /> Mark Late
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedRowIds([])}
+                  style={{
+                    background: '#fff',
+                    color: '#64748b',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    padding: '6px 10px',
+                    fontSize: '11.5px',
+                    fontWeight: 500,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="att-table-responsive" style={{ overflow: 'visible' }}>
             <table className="att-table">
               <thead>
@@ -1053,14 +1269,14 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
                           </div>
                         </td>
                         <td>{stu.dept}</td>
-                        <td style={{ textAlign: 'center' }}>{stu.semester !== '-' ? stu.semester : '-'}</td>
-                        <td style={{ textAlign: 'center' }}>
+                        <td>{stu.semester !== '-' ? stu.semester : '-'}</td>
+                        <td>
                           <span style={{ fontWeight: 600, color: '#4338ca', fontSize: 11 }}>
                             {stu.section || 'Section A'}
                           </span>
                         </td>
                         <td>{stu.subject}</td>
-                        <td style={{ textAlign: 'center' }}>
+                        <td>
                           <span
                             className={`att-badge-status ${
                               stu.status === 'Present'
