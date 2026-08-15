@@ -229,42 +229,62 @@ exports.bulkCreateStudents = (req, res) => {
   const added = [];
 
   incoming.forEach((row, idx) => {
-    const name = row.name || row['Student Name'] || row['Name'] || '-';
-    const rollNo = row.rollNo || row['Roll No.'] || row['Roll No'] || row['Roll Number'] || '-';
-    const dept = row.dept || row['Department'] || row['Branch'] || '-';
-    const semRaw = row.semester ?? row['Semester'] ?? '-';
-    const semVal = semRaw !== '-' && semRaw !== '' ? (typeof semRaw === 'string' ? parseInt(semRaw.replace('Semester ', ''), 10) || semRaw : semRaw) : '-';
+    const name = row.name || row['Student Name'] || row['Name'] || row['Full Name'] || '-';
+    const rollNo =
+      row.rollNo ||
+      row['Roll No.'] ||
+      row['Roll No'] ||
+      row['Roll Number'] ||
+      row['Enrollment No.'] ||
+      row['Enrollment No'] ||
+      row['Enrollment'] ||
+      row['Roll_No'] ||
+      row['Roll'] ||
+      row['ID'] ||
+      row['Student ID'] ||
+      row['rollNo'] ||
+      row['roll_no'] ||
+      '-';
+    const dept = row.dept || row['Department'] || row['Branch'] || 'Computer Engg.';
+    const semRaw = row.semester ?? row['Semester'] ?? 4;
+    const semVal = semRaw !== '-' && semRaw !== '' ? (typeof semRaw === 'string' ? parseInt(semRaw.replace('Semester ', ''), 10) || semRaw : semRaw) : 4;
     const attRaw = row.attendance ?? row['Attendance'] ?? row.attendancePct ?? 80;
     const attVal = typeof attRaw === 'string' ? parseFloat(attRaw.replace('%', '')) || 80 : Number(attRaw) || 80;
-    const cgpaRaw = row.cgpa ?? row['CGPA'] ?? '-';
+    const cgpaRaw = row.cgpa ?? row['CGPA'] ?? row['GPA'] ?? '-';
     const cgpaVal = cgpaRaw !== '-' && cgpaRaw !== '' ? (typeof cgpaRaw === 'string' ? parseFloat(cgpaRaw) || '-' : cgpaRaw) : '-';
+    const marksRaw = row.marks ?? row['Marks'] ?? row['Score'] ?? (typeof cgpaVal === 'number' ? Math.round(cgpaVal * 9.5) : 60);
+    const marksVal = typeof marksRaw === 'string' ? parseFloat(marksRaw) || 60 : Number(marksRaw) || 60;
     const backlogsRaw = row.backlogs ?? row['Backlogs'] ?? 0;
     const backlogsVal = typeof backlogsRaw === 'string' ? parseInt(backlogsRaw, 10) || 0 : Number(backlogsRaw) || 0;
+    const subject = row.subject || row['Subject'] || row['Course'] || 'Data Structures';
+    const section = row.section || row['Section'] || 'Section A';
     const status = row.status || row['Status'] || 'Active';
-    const id = row.id || row['Student ID'] || row['ID'] || `STU${1001 + students.length}`;
+    const id = row.id || row['Student ID'] || row['ID'] || `STU${1001 + students.length + idx}`;
 
     const newStudent = {
       id,
-      rollNo,
+      rollNo: rollNo !== '-' ? rollNo : id,
       name,
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
       initials: name !== '-' ? name.split(' ').map((n) => n[0]).join('').toUpperCase() : 'ST',
       dept,
       semester: semVal,
+      section,
       cgpa: cgpaVal,
       backlogs: backlogsVal,
       status,
+      attendanceHistory: {},
       attendance: {
         percentage: attVal,
         status: attVal >= 75 ? 'Present' : 'Absent',
-        subject: row.subject || 'Core Engineering',
-        section: row.section || 'Section A',
-        lastUpdated: '13 May 2025'
+        subject,
+        section,
+        lastUpdated: '15 Aug 2026'
       },
       academic: {
-        cgpa: cgpaVal,
-        grade: typeof cgpaVal === 'number' ? (cgpaVal >= 8 ? 'A' : cgpaVal >= 6 ? 'B' : cgpaVal >= 4 ? 'C' : 'F') : '-',
-        marks: typeof cgpaVal === 'number' ? Math.round(cgpaVal * 9.5) : 60,
+        cgpa: typeof cgpaVal === 'number' ? cgpaVal : 5.0,
+        grade: typeof cgpaVal === 'number' ? (cgpaVal >= 8.5 ? 'A+' : cgpaVal >= 7.5 ? 'A' : cgpaVal >= 6.0 ? 'B' : cgpaVal >= 4.0 ? 'C' : 'F') : 'C',
+        marks: marksVal,
         atRisk: typeof cgpaVal === 'number' ? cgpaVal < 5.0 : false
       },
       behavior: {
@@ -305,7 +325,7 @@ exports.bulkCreateStudents = (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: `Successfully imported ${added.length} students from Excel.`,
+    message: `Successfully imported ${added.length} student records.`,
     count: added.length,
     data: added
   });

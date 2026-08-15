@@ -287,10 +287,12 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
       dept: payload.dept,
       semester: payload.semester,
       section: payload.section,
+      subject: payload.subject || 'Data Structures',
       riskScore: payload.attendancePct < 60 || payload.cgpa < 4 ? '85%' : payload.cgpa < 5.5 ? '50%' : '15%',
       riskLevel: payload.attendancePct < 60 || payload.cgpa < 4 ? 'High' : payload.cgpa < 5.5 ? 'Medium' : 'Low',
       attendance: `${payload.attendancePct}%`,
       cgpa: `${payload.cgpa}`,
+      marks: Math.round(payload.cgpa * 9.5),
       backlogs: `${payload.backlogs}`,
       initials: payload.name.split(' ').map((n) => n[0]).join('').toUpperCase(),
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
@@ -299,7 +301,13 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
       income: '₹1,00,000 - ₹2,00,000'
     };
 
-    setStudents((prev) => [newStudent, ...prev]);
+    setStudents((prev) => {
+      const updated = [newStudent, ...prev];
+      try {
+        localStorage.setItem('edusuccess_students_list', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
     setShowAddModal(false);
     setAddForm({
       name: '',
@@ -326,7 +334,13 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
       console.warn('Backend delete sync:', err);
     }
 
-    setStudents((prev) => prev.filter((s) => s.id !== studentId));
+    setStudents((prev) => {
+      const updated = prev.filter((s) => s.id !== studentId);
+      try {
+        localStorage.setItem('edusuccess_students_list', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
     setSelectedStudentForAnalysis(null);
     notify(`Student "${studentName}" (${studentId}) has been deleted.`);
   };
@@ -369,24 +383,31 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
           };
 
           const name = getVal(['student name', 'name', 'full name', 'student_name']);
-          const rollNo = getVal(['roll no.', 'roll no', 'roll_no', 'roll number', 'enrollment', 'enrollment no']);
+          const rollNo = getVal(['enrollment no.', 'enrollment no', 'enrollment', 'enrollment_no', 'roll no.', 'roll no', 'roll_no', 'roll number', 'rollno', 'roll', 'student id', 'id']);
           const dept = getVal(['department', 'dept', 'branch', 'course']);
           const sem = getVal(['semester', 'sem']);
           const sec = getVal(['section', 'sec', 'class']) === '-' ? 'Section A' : getVal(['section', 'sec', 'class']);
           const attendance = getVal(['attendance', 'attendance %', 'attendance_pct', 'attendance percentage']);
-          const cgpa = getVal(['cgpa', 'gpa', 'marks']);
+          const cgpa = getVal(['cgpa', 'gpa', 'academic cgpa']);
+          const marks = getVal(['marks', 'score', 'percentage', 'academic marks']);
           const backlogs = getVal(['backlogs', 'backlog', 'active backlogs']);
+          const subject = getVal(['subject', 'course', 'subject name', 'course name']);
+
+          const effectiveId = `STU${1001 + students.length + idx}`;
+          const effectiveRoll = rollNo !== '-' ? rollNo : effectiveId;
 
           return {
-            id: `STU${1001 + students.length + idx}`,
+            id: effectiveId,
             name,
-            rollNo,
-            dept,
-            semester: sem,
+            rollNo: effectiveRoll,
+            dept: dept !== '-' ? dept : 'Computer Engg.',
+            semester: sem !== '-' ? (typeof sem === 'string' ? parseInt(sem.replace('Semester ', ''), 10) || 4 : sem) : 4,
             section: sec,
-            attendance: attendance !== '-' && !attendance.endsWith('%') ? `${attendance}%` : attendance,
-            cgpa,
-            backlogs
+            subject: subject !== '-' ? subject : 'Data Structures',
+            attendance: attendance !== '-' && !attendance.endsWith('%') ? `${attendance}%` : (attendance !== '-' ? attendance : '80%'),
+            cgpa: cgpa !== '-' ? cgpa : (marks !== '-' ? (parseFloat(marks) / 9.5).toFixed(2) : '6.0'),
+            marks: marks !== '-' ? marks : (cgpa !== '-' ? Math.round(parseFloat(cgpa) * 9.5) : 60),
+            backlogs: backlogs !== '-' ? backlogs : '0'
           };
         });
 
@@ -409,7 +430,7 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
     }
 
     const importedFormatted = parsedPreview.map((s) => {
-      const attNum = parseFloat(s.attendance.replace('%', '')) || 80;
+      const attNum = parseFloat(String(s.attendance).replace('%', '')) || 80;
       const cgpaNum = parseFloat(s.cgpa) || 6.0;
       const isHigh = attNum < 60 || (s.cgpa !== '-' && cgpaNum < 4.0);
       const isMed = attNum < 75 || (s.cgpa !== '-' && cgpaNum < 5.5);
@@ -426,11 +447,17 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
       };
     });
 
-    setStudents((prev) => [...importedFormatted, ...prev]);
+    setStudents((prev) => {
+      const updated = [...importedFormatted, ...prev];
+      try {
+        localStorage.setItem('edusuccess_students_list', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
     setShowImportModal(false);
     setImportFile(null);
     setParsedPreview([]);
-    notify(`Successfully imported ${importedFormatted.length} students from Excel! (Missing columns filled with "-")`);
+    notify(`Successfully imported ${importedFormatted.length} students from Excel! (Roll numbers & all fields saved)`);
   };
 
   // Download Sample Excel Template
