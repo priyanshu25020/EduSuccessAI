@@ -2,13 +2,55 @@
 const { students } = require('../data/db');
 const { evaluateStudentRisk } = require('../utils/riskEngine');
 
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const parseDateParams = (dateStr = '15 Aug 2026') => {
+  const parts = dateStr.trim().split(' ');
+  const day = parts.length === 3 ? parseInt(parts[0], 10) || 15 : 15;
+  const mStr = parts.length === 3 ? parts[1] : 'Aug';
+  const mIdx = MONTH_SHORT.indexOf(mStr) !== -1 ? MONTH_SHORT.indexOf(mStr) : 7;
+  const year = parts.length === 3 ? parseInt(parts[2], 10) || 2026 : 2026;
+  const daysInMonth = new Date(year, mIdx + 1, 0).getDate();
+  const monthKey = `${mStr} ${year}`;
+  return { day, month: mIdx, monthStr: mStr, year, daysInMonth, monthKey };
+};
+
+const calculateStudentMonthlyAttendance = (student, targetDateStr = '15 Aug 2026') => {
+  const { monthKey, daysInMonth } = parseDateParams(targetDateStr);
+  const historyEntries = Object.entries(student.attendanceHistory || {}).filter(
+    ([dKey, st]) => dKey.includes(monthKey) && st && st !== 'Not Marked' && st !== '-'
+  );
+
+  let attended = 0;
+  historyEntries.forEach(([_, st]) => {
+    if (st === 'Present') attended += 1;
+    else if (st === 'Late') attended += 0.5;
+  });
+
+  const pct = daysInMonth > 0 ? parseFloat(((attended / daysInMonth) * 100).toFixed(1)) : 0;
+  return { pct, attendedDays: attended, daysInMonth, markedCount: historyEntries.length };
+};
+
 exports.getAllStudents = (req, res) => {
-  const { department, semester, riskLevel, status, search, page, limit } = req.query;
+  const { department, semester, riskLevel, status, search, page, limit, date = '15 Aug 2026' } = req.query;
 
   let list = students.map((s) => {
-    const riskEval = evaluateStudentRisk(s);
-    return {
+    const attStats = calculateStudentMonthlyAttendance(s, date);
+    const updatedStudent = {
       ...s,
+      attendance: {
+        ...(s.attendance || {}),
+        percentage: attStats.pct,
+        attendedDays: attStats.attendedDays,
+        daysInMonth: attStats.daysInMonth,
+        status: s.attendanceHistory?.[date] || (s.attendance?.status || 'Not Marked'),
+        lastUpdated: attStats.markedCount > 0 ? (s.attendanceHistory?.[date] ? date : (s.attendance?.lastUpdated || '-')) : '-'
+      }
+    };
+
+    const riskEval = evaluateStudentRisk(updatedStudent);
+    return {
+      ...updatedStudent,
       calculatedRisk: riskEval,
       riskScore: riskEval.score,
       riskLevel: riskEval.level,
@@ -72,12 +114,26 @@ exports.getStudentById = (req, res) => {
     return res.status(404).json({ success: false, message: 'Student not found' });
   }
 
-  const riskEval = evaluateStudentRisk(student);
+  const targetDate = req.query.date || '15 Aug 2026';
+  const attStats = calculateStudentMonthlyAttendance(student, targetDate);
+  const updatedStudent = {
+    ...student,
+    attendance: {
+      ...(student.attendance || {}),
+      percentage: attStats.pct,
+      attendedDays: attStats.attendedDays,
+      daysInMonth: attStats.daysInMonth,
+      status: student.attendanceHistory?.[targetDate] || (student.attendance?.status || 'Not Marked'),
+      lastUpdated: attStats.markedCount > 0 ? (student.attendanceHistory?.[targetDate] ? targetDate : (student.attendance?.lastUpdated || '-')) : '-'
+    }
+  };
+
+  const riskEval = evaluateStudentRisk(updatedStudent);
 
   res.status(200).json({
     success: true,
     data: {
-      ...student,
+      ...updatedStudent,
       calculatedRisk: riskEval,
       riskScore: riskEval.score,
       riskLevel: riskEval.level,

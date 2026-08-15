@@ -27,155 +27,83 @@ import * as XLSX from 'xlsx';
 import { studentService } from '../services/studentService';
 import '../styles/attendance.css';
 
-const INITIAL_FALLBACK_STUDENTS = [
-  {
-    id: 'STU1001',
-    name: 'Rahul Patel',
-    rollNo: 'CE2021001',
-    dept: 'Computer Engg.',
-    semester: 4,
-    section: 'Section A',
-    riskScore: '8%',
-    riskLevel: 'Low',
-    attendance: '87%',
-    cgpa: '5.8',
-    backlogs: '2',
-    initials: 'RP',
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80',
-    factors: '2 Backlog(s)',
-    style: 'Visual Learner',
-    income: '< ₹1,00,000'
-  },
-  {
-    id: 'STU1002',
-    name: 'Sneha Singh',
-    rollNo: 'IT2021002',
-    dept: 'Information Tech.',
-    semester: 4,
-    section: 'Section B',
-    riskScore: '8%',
-    riskLevel: 'Low',
-    attendance: '92%',
-    cgpa: '6.2',
-    backlogs: '1',
-    initials: 'SS',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-    factors: '1 Backlog(s)',
-    style: 'Auditory Learner',
-    income: '₹1,00,000 - ₹2,00,000'
-  },
-  {
-    id: 'STU1003',
-    name: 'Aarav Mehta',
-    rollNo: 'EE2021003',
-    dept: 'Electronics Engg.',
-    semester: 4,
-    section: 'Section A',
-    riskScore: '93%',
-    riskLevel: 'High',
-    attendance: '45%',
-    cgpa: '3.65',
-    backlogs: '3',
-    initials: 'AM',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
-    factors: 'Low Attendance (<60%), Low CGPA (<4.0), 3 Active Backlogs',
-    style: 'Read/Write Learner',
-    income: '> ₹2,00,000'
-  },
-  {
-    id: 'STU1004',
-    name: 'Pooja Sharma',
-    rollNo: 'ME2021004',
-    dept: 'Mechanical Engg.',
-    semester: 4,
-    section: 'Section B',
-    riskScore: '63%',
-    riskLevel: 'High',
-    attendance: '68%',
-    cgpa: '3.89',
-    backlogs: '2',
-    initials: 'PS',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
-    factors: 'Attendance Below 75%, Low CGPA (<4.0), 2 Backlog(s)',
-    style: 'Visual Learner',
-    income: '< ₹1,00,000'
-  },
-  {
-    id: 'STU1005',
-    name: 'Karan Verma',
-    rollNo: 'CE2021005',
-    dept: 'Computer Engg.',
-    semester: 6,
-    section: 'Section A',
-    riskScore: '50%',
-    riskLevel: 'Medium',
-    attendance: '83%',
-    cgpa: '4.12',
-    backlogs: '3',
-    initials: 'KV',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80',
-    factors: 'CGPA Below 5.5, 3 Active Backlogs',
-    style: 'Kinesthetic Learner',
-    income: '₹1,00,000 - ₹2,00,000'
-  },
-  {
-    id: 'STU1006',
-    name: 'Anjali Desai',
-    rollNo: 'IT2021006',
-    dept: 'Information Tech.',
-    semester: 6,
-    section: 'Section B',
-    riskScore: '0%',
-    riskLevel: 'Low',
-    attendance: '90%',
-    cgpa: '8.45',
-    backlogs: '0',
-    initials: 'AD',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80',
-    factors: 'Stable',
-    style: 'Visual Learner',
-    income: '> ₹2,00,000'
-  },
-  {
-    id: 'STU1007',
-    name: 'Vivek Yadav',
-    rollNo: 'EE2021007',
-    dept: 'Electronics Engg.',
-    semester: 6,
-    section: 'Section A',
-    riskScore: '71%',
-    riskLevel: 'High',
-    attendance: '72%',
-    cgpa: '3.78',
-    backlogs: '2',
-    initials: 'VY',
-    avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80',
-    factors: 'Attendance Below 75%, Low CGPA (<4.0), 2 Backlog(s)',
-    style: 'Auditory Learner',
-    income: '₹1,00,000 - ₹2,00,000'
-  },
-  {
-    id: 'STU1008',
-    name: 'Neha Patel',
-    rollNo: 'ME2021008',
-    dept: 'Mechanical Engg.',
-    semester: 6,
-    section: 'Section B',
-    riskScore: '100%',
-    riskLevel: 'High',
-    attendance: '30%',
-    cgpa: '3.42',
-    backlogs: '4',
-    initials: 'NP',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80',
-    factors: 'Low Attendance (<60%), Low CGPA (<4.0), 4 Active Backlogs',
-    style: 'Kinesthetic Learner',
-    income: '< ₹1,00,000'
-  }
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const parseDateParams = (dateStr = '15 Aug 2026') => {
+  const parts = dateStr.trim().split(' ');
+  const day = parts.length === 3 ? parseInt(parts[0], 10) || 15 : 15;
+  const mStr = parts.length === 3 ? parts[1] : 'Aug';
+  const mIdx = MONTH_SHORT.indexOf(mStr) !== -1 ? MONTH_SHORT.indexOf(mStr) : 7;
+  const year = parts.length === 3 ? parseInt(parts[2], 10) || 2026 : 2026;
+  const daysInMonth = new Date(year, mIdx + 1, 0).getDate();
+  const monthKey = `${mStr} ${year}`;
+  return { day, month: mIdx, monthStr: mStr, year, daysInMonth, monthKey };
+};
+
+const getStoredAttendanceHistory = () => {
+  try {
+    const saved = localStorage.getItem('edusuccess_attendance_history');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return {};
+};
+
+const calculateStudentMonthlyAttendance = (student, targetDateStr = '15 Aug 2026') => {
+  const { monthKey, daysInMonth } = parseDateParams(targetDateStr);
+  const historyMap = getStoredAttendanceHistory();
+  const studentKey = student.rollNo || student.id;
+  const localHistory = historyMap[studentKey] || historyMap[student.rollNo] || historyMap[student.id] || {};
+  const history = { ...(student.attendanceHistory || {}), ...localHistory };
+
+  const historyEntries = Object.entries(history).filter(
+    ([dKey, st]) => dKey.includes(monthKey) && st && st !== 'Not Marked' && st !== '-'
+  );
+
+  let attended = 0;
+  historyEntries.forEach(([_, st]) => {
+    if (st === 'Present') attended += 1;
+    else if (st === 'Late') attended += 0.5;
+  });
+
+  const pct = daysInMonth > 0 ? parseFloat(((attended / daysInMonth) * 100).toFixed(1)) : 0;
+  return { pct, attendedDays: attended, daysInMonth, markedCount: historyEntries.length };
+};
+
+const BASE_STUDENTS = [
+  { id: 'STU1001', name: 'Rahul Patel', rollNo: 'CE2021001', dept: 'Computer Engg.', semester: 4, section: 'Section A', cgpa: '5.8', backlogs: '2', initials: 'RP', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80', factors: '2 Backlog(s)', style: 'Visual Learner', income: '< ₹1,00,000' },
+  { id: 'STU1002', name: 'Sneha Singh', rollNo: 'IT2021002', dept: 'Information Tech.', semester: 4, section: 'Section B', cgpa: '6.2', backlogs: '1', initials: 'SS', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80', factors: '1 Backlog(s)', style: 'Auditory Learner', income: '₹1,00,000 - ₹2,00,000' },
+  { id: 'STU1003', name: 'Aarav Mehta', rollNo: 'EE2021003', dept: 'Electronics Engg.', semester: 4, section: 'Section A', cgpa: '3.65', backlogs: '3', initials: 'AM', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80', factors: 'Low CGPA (<4.0), 3 Active Backlogs', style: 'Read/Write Learner', income: '> ₹2,00,000' },
+  { id: 'STU1004', name: 'Pooja Sharma', rollNo: 'ME2021004', dept: 'Mechanical Engg.', semester: 4, section: 'Section B', cgpa: '3.89', backlogs: '2', initials: 'PS', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80', factors: 'Low CGPA (<4.0), 2 Backlog(s)', style: 'Visual Learner', income: '< ₹1,00,000' },
+  { id: 'STU1005', name: 'Karan Verma', rollNo: 'CE2021005', dept: 'Computer Engg.', semester: 6, section: 'Section A', cgpa: '4.12', backlogs: '3', initials: 'KV', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80', factors: 'CGPA Below 5.5, 3 Active Backlogs', style: 'Kinesthetic Learner', income: '₹1,00,000 - ₹2,00,000' },
+  { id: 'STU1006', name: 'Anjali Desai', rollNo: 'IT2021006', dept: 'Information Tech.', semester: 6, section: 'Section B', cgpa: '8.45', backlogs: '0', initials: 'AD', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80', factors: 'Stable', style: 'Visual Learner', income: '> ₹2,00,000' },
+  { id: 'STU1007', name: 'Vivek Yadav', rollNo: 'EE2021007', dept: 'Electronics Engg.', semester: 6, section: 'Section A', cgpa: '3.78', backlogs: '2', initials: 'VY', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80', factors: 'Low CGPA (<4.0), 2 Backlog(s)', style: 'Auditory Learner', income: '₹1,00,000 - ₹2,00,000' },
+  { id: 'STU1008', name: 'Neha Patel', rollNo: 'ME2021008', dept: 'Mechanical Engg.', semester: 6, section: 'Section B', cgpa: '3.42', backlogs: '4', initials: 'NP', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80', factors: 'Low CGPA (<4.0), 4 Active Backlogs', style: 'Kinesthetic Learner', income: '< ₹1,00,000' }
 ];
 
-export default function StudentsPage({ notify = () => {}, globalSearchQuery = '' }) {
-  const [students, setStudents] = useState(INITIAL_FALLBACK_STUDENTS);
+const getInitialStudentsWithLiveAttendance = (targetDate = '15 Aug 2026') => {
+  return BASE_STUDENTS.map((s) => {
+    const attStats = calculateStudentMonthlyAttendance(s, targetDate);
+    const attPct = attStats.pct;
+    let riskLevel = 'Low';
+    let riskScore = '8%';
+    if (attPct < 60 || parseFloat(s.cgpa) < 4.0 || parseInt(s.backlogs, 10) >= 3) {
+      riskLevel = 'High';
+      riskScore = '75%';
+    } else if (attPct < 75 || parseFloat(s.cgpa) < 5.5 || parseInt(s.backlogs, 10) > 0) {
+      riskLevel = 'Medium';
+      riskScore = '45%';
+    }
+    return {
+      ...s,
+      riskLevel,
+      riskScore,
+      attendance: `${attPct}%`
+    };
+  });
+};
+
+export default function StudentsPage({ notify = () => {}, globalSearchQuery = '', globalDate = '15 Aug 2026' }) {
+  const [students, setStudents] = useState(() => getInitialStudentsWithLiveAttendance(globalDate));
   const [searchQuery, setSearchQuery] = useState('');
   const [department, setDepartment] = useState('All Departments');
   const [semester, setSemester] = useState('All Semesters');
@@ -211,38 +139,43 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
   const fileInputRef = useRef(null);
 
   // Load from Backend API
-  const loadStudents = async () => {
+  const loadStudents = async (targetDate = globalDate) => {
     try {
-      const res = await studentService.getAll();
+      const res = await studentService.getAll({ date: targetDate });
       if (res && res.data && res.data.length > 0) {
-        const formatted = res.data.map((s) => ({
-          id: s.id,
-          name: s.name || '-',
-          rollNo: s.rollNo || '-',
-          dept: s.dept || '-',
-          semester: s.semester !== undefined ? s.semester : '-',
-          section: s.section || s.attendance?.section || 'Section A',
-          riskScore: s.calculatedRisk?.score || s.risk?.score || s.riskScore || '20%',
-          riskLevel: s.calculatedRisk?.level || s.risk?.level || s.riskLevel || 'Low',
-          attendance: typeof s.attendance?.percentage === 'number' ? `${s.attendance.percentage}%` : (s.attendance && !s.attendance.includes('%') ? `${s.attendance}%` : s.attendance || '80%'),
-          cgpa: s.academic?.cgpa !== undefined ? `${s.academic.cgpa}` : `${s.cgpa ?? '-'}`,
-          backlogs: s.backlogs !== undefined ? `${s.backlogs}` : '0',
-          initials: s.name && s.name !== '-' ? s.name.split(' ').map((n) => n[0]).join('').toUpperCase() : 'ST',
-          avatar: s.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-          factors: s.calculatedRisk?.factors || s.risk?.factors || s.factors || 'None',
-          style: s.behavior?.style || s.style || 'Visual Learner',
-          income: s.socioEconomic?.income || s.income || '₹1,00,000 - ₹2,00,000'
-        }));
+        const formatted = res.data.map((s) => {
+          const attStats = calculateStudentMonthlyAttendance(s, targetDate);
+          const attPct = attStats.pct;
+          return {
+            id: s.id,
+            name: s.name || '-',
+            rollNo: s.rollNo || '-',
+            dept: s.dept || '-',
+            semester: s.semester !== undefined ? s.semester : '-',
+            section: s.section || s.attendance?.section || 'Section A',
+            riskScore: s.calculatedRisk?.score || s.risk?.score || s.riskScore || '20%',
+            riskLevel: s.calculatedRisk?.level || s.risk?.level || s.riskLevel || 'Low',
+            attendance: `${attPct}%`,
+            cgpa: s.academic?.cgpa !== undefined ? `${s.academic.cgpa}` : `${s.cgpa ?? '-'}`,
+            backlogs: s.backlogs !== undefined ? `${s.backlogs}` : '0',
+            initials: s.name && s.name !== '-' ? s.name.split(' ').map((n) => n[0]).join('').toUpperCase() : 'ST',
+            avatar: s.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+            factors: s.calculatedRisk?.factors || s.risk?.factors || s.factors || 'None',
+            style: s.behavior?.style || s.style || 'Visual Learner',
+            income: s.socioEconomic?.income || s.income || '₹1,00,000 - ₹2,00,000'
+          };
+        });
         setStudents(formatted);
       }
     } catch (e) {
-      console.warn('Using local fallback for students:', e);
+      console.warn('Using live persistent fallback for students:', e);
+      setStudents(getInitialStudentsWithLiveAttendance(targetDate));
     }
   };
 
   useEffect(() => {
-    loadStudents();
-  }, []);
+    loadStudents(globalDate);
+  }, [globalDate]);
 
   // Close dropdown on click outside
   useEffect(() => {

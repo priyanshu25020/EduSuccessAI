@@ -441,6 +441,7 @@ export default function App() {
               notify={notify}
               dashboardData={dashboardData}
               globalSearchQuery={query}
+              globalDate={date}
             />
           )}
 
