@@ -49,3 +49,5 @@ venv/
 # Temporary files
 *.tmp
 *.temp
+# Local Netlify folder
+.netlify
