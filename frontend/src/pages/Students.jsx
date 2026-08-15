@@ -174,7 +174,7 @@ const INITIAL_FALLBACK_STUDENTS = [
   }
 ];
 
-export default function StudentsPage({ notify = () => {} }) {
+export default function StudentsPage({ notify = () => {}, globalSearchQuery = '' }) {
   const [students, setStudents] = useState(INITIAL_FALLBACK_STUDENTS);
   const [searchQuery, setSearchQuery] = useState('');
   const [department, setDepartment] = useState('All Departments');
@@ -258,7 +258,7 @@ export default function StudentsPage({ notify = () => {} }) {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [department, semester, riskLevel, section, searchQuery, rowsPerPage]);
+  }, [department, semester, riskLevel, section, searchQuery, globalSearchQuery, rowsPerPage]);
 
   // Filter Options
   const departmentOptions = [
@@ -287,6 +287,7 @@ export default function StudentsPage({ notify = () => {} }) {
 
   // Filtering
   const filteredStudents = useMemo(() => {
+    const effectiveQuery = (searchQuery || globalSearchQuery || '').trim().toLowerCase();
     return students.filter((s) => {
       if (department !== 'All Departments' && s.dept !== department) return false;
       if (semester !== 'All Semesters') {
@@ -299,20 +300,19 @@ export default function StudentsPage({ notify = () => {} }) {
       }
       if (section !== 'All Sections' && s.section !== section) return false;
 
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      if (effectiveQuery) {
         const match =
-          s.name.toLowerCase().includes(q) ||
-          s.id.toLowerCase().includes(q) ||
-          s.rollNo.toLowerCase().includes(q) ||
-          s.dept.toLowerCase().includes(q) ||
-          s.section.toLowerCase().includes(q);
+          s.name.toLowerCase().includes(effectiveQuery) ||
+          s.id.toLowerCase().includes(effectiveQuery) ||
+          s.rollNo.toLowerCase().includes(effectiveQuery) ||
+          s.dept.toLowerCase().includes(effectiveQuery) ||
+          s.section.toLowerCase().includes(effectiveQuery);
         if (!match) return false;
       }
 
       return true;
     });
-  }, [students, department, semester, riskLevel, section, searchQuery]);
+  }, [students, department, semester, riskLevel, section, searchQuery, globalSearchQuery]);
 
   // Paginated Slicing (Strict 10 items per page)
   const totalPages = Math.ceil(filteredStudents.length / rowsPerPage) || 1;

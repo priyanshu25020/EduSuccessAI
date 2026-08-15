@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   Menu,
   Search,
@@ -46,17 +46,6 @@ const fallbackStudents = [
   ['STU1008', 'Neha Patel', 'Mechanical Engg.', '100%', 'Low Attendance (<60%), 4 Backlogs', 'NP']
 ];
 
-const allInitialStudents = [
-  ['STU1001', 'Rahul Patel', 'CE2021001', 'Computer Engg.', 'Semester 4', '8%', 'Low', '87%', '5.8', '2', 'Active', 'RP'],
-  ['STU1002', 'Sneha Singh', 'IT2021002', 'Information Tech.', 'Semester 4', '8%', 'Low', '92%', '6.2', '1', 'Active', 'SS'],
-  ['STU1003', 'Aarav Mehta', 'EE2021003', 'Electronics Engg.', 'Semester 4', '93%', 'High', '45%', '3.65', '3', 'Active', 'AM'],
-  ['STU1004', 'Pooja Sharma', 'ME2021004', 'Mechanical Engg.', 'Semester 4', '63%', 'High', '68%', '3.89', '2', 'Active', 'PS'],
-  ['STU1005', 'Karan Verma', 'CE2021005', 'Computer Engg.', 'Semester 6', '50%', 'Medium', '83%', '4.12', '3', 'Active', 'KV'],
-  ['STU1006', 'Anjali Desai', 'IT2021006', 'Information Tech.', 'Semester 6', '0%', 'Low', '90%', '8.45', '0', 'Active', 'AD'],
-  ['STU1007', 'Vivek Yadav', 'EE2021007', 'Electronics Engg.', 'Semester 6', '71%', 'High', '72%', '3.78', '2', 'Active', 'VY'],
-  ['STU1008', 'Neha Patel', 'ME2021008', 'Mechanical Engg.', 'Semester 6', '100%', 'High', '30%', '3.42', '4', 'Active', 'NP']
-];
-
 const nav = [
   [
     'STUDENT ANALYTICS',
@@ -95,16 +84,27 @@ const nav = [
   ]
 ];
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 export default function App() {
   const [active, setActive] = useState('Dashboard');
   const [query, setQuery] = useState('');
   const [toast, setToast] = useState('');
   const [dateOpen, setDateOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [date, setDate] = useState('13 May 2025');
+  const [date, setDate] = useState('15 Aug 2026');
+  const [headerCalMonth, setHeaderCalMonth] = useState(7); // August (0-indexed: 7)
+  const [headerCalYear, setHeaderCalYear] = useState(2026);
   const [selectedCard, setSelectedCard] = useState('');
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardPage, setDashboardPage] = useState(1);
+
+  const dateWrapRef = useRef(null);
+  const noticeWrapRef = useRef(null);
 
   const notify = (message) => {
     setToast(message);
@@ -116,6 +116,20 @@ export default function App() {
     notify(name + ' insights selected.');
     window.setTimeout(() => setSelectedCard(''), 600);
   };
+
+  // Close calendar popover on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (dateWrapRef.current && !dateWrapRef.current.contains(e.target)) {
+        setDateOpen(false);
+      }
+      if (noticeWrapRef.current && !noticeWrapRef.current.contains(e.target)) {
+        setNotificationsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   // Fetch real-time dashboard data from Backend
   useEffect(() => {
@@ -134,7 +148,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [active]);
+  }, [active, date]);
 
   // Dynamic Values
   const totalCount = dashboardData?.stats?.totalStudents?.value || '8';
@@ -214,6 +228,30 @@ export default function App() {
     }
   ];
 
+  // Top header calendar helpers
+  const daysInHeaderMonth = new Date(headerCalYear, headerCalMonth + 1, 0).getDate();
+  const startDayOfHeaderMonth = new Date(headerCalYear, headerCalMonth, 1).getDay();
+
+  const handleHeaderPrevMonth = (e) => {
+    e.stopPropagation();
+    if (headerCalMonth === 0) {
+      setHeaderCalMonth(11);
+      setHeaderCalYear((y) => y - 1);
+    } else {
+      setHeaderCalMonth((m) => m - 1);
+    }
+  };
+
+  const handleHeaderNextMonth = (e) => {
+    e.stopPropagation();
+    if (headerCalMonth === 11) {
+      setHeaderCalMonth(0);
+      setHeaderCalYear((y) => y + 1);
+    } else {
+      setHeaderCalMonth((m) => m + 1);
+    }
+  };
+
   return (
     <div className="app-shell">
       {/* Sidebar Navigation */}
@@ -279,7 +317,7 @@ export default function App() {
           </label>
 
           <div className="top-actions">
-            <div className="date-wrap">
+            <div className="date-wrap" ref={dateWrapRef}>
               <button onClick={() => setDateOpen(!dateOpen)}>
                 <CalendarDays /> <b>{date}</b>
                 <ChevronDown />
@@ -287,38 +325,43 @@ export default function App() {
               {dateOpen && (
                 <div className="calendar-pop">
                   <div className="calendar-head">
-                    <button>‹</button>
-                    <b>May 2025</b>
-                    <button>›</button>
+                    <button type="button" onClick={handleHeaderPrevMonth}>‹</button>
+                    <b>{MONTH_NAMES[headerCalMonth]} {headerCalYear}</b>
+                    <button type="button" onClick={handleHeaderNextMonth}>›</button>
                   </div>
                   <div className="weekdays">
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x, i) => (
+                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((x, i) => (
                       <span key={i}>{x}</span>
                     ))}
                   </div>
                   <div className="days">
-                    {Array.from({ length: 4 }, (_, i) => (
+                    {Array.from({ length: startDayOfHeaderMonth }, (_, i) => (
                       <i key={'e' + i} />
                     ))}
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                      <button
-                        className={date === `${day} May 2025` ? 'chosen' : ''}
-                        key={day}
-                        onClick={() => {
-                          setDate(`${day} May 2025`);
-                          setDateOpen(false);
-                          notify(`Dashboard updated for ${day} May 2025`);
-                        }}
-                      >
-                        {day}
-                      </button>
-                    ))}
+                    {Array.from({ length: daysInHeaderMonth }, (_, i) => i + 1).map((day) => {
+                      const dStr = `${day} ${MONTH_SHORT[headerCalMonth]} ${headerCalYear}`;
+                      const isSelected = date === dStr;
+                      return (
+                        <button
+                          type="button"
+                          className={isSelected ? 'chosen' : ''}
+                          key={day}
+                          onClick={() => {
+                            setDate(dStr);
+                            setDateOpen(false);
+                            notify(`Date updated to ${dStr}`);
+                          }}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="notice-wrap">
+            <div className="notice-wrap" ref={noticeWrapRef}>
               <button
                 className="notice"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
@@ -358,14 +401,48 @@ export default function App() {
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Page Content with globalSearchQuery passed down */}
         <div className="page">
-          {active === 'Attendance' && <AttendancePage notify={notify} />}
-          {active === 'Academic Performance' && <AcademicPerformancePage notify={notify} />}
-          {active === 'Learning Behavior' && <LearningBehaviorPage notify={notify} />}
-          {active === 'Socio-economic Factors' && <SocioEconomicFactorsPage notify={notify} />}
-          {active === 'Risk Overview' && <RiskOverview notify={notify} dashboardData={dashboardData} />}
-          {active === 'Students' && <StudentsPage notify={notify} dashboardData={dashboardData} />}
+          {active === 'Attendance' && (
+            <AttendancePage
+              notify={notify}
+              globalDate={date}
+              setGlobalDate={setDate}
+              globalSearchQuery={query}
+            />
+          )}
+          {active === 'Academic Performance' && (
+            <AcademicPerformancePage
+              notify={notify}
+              globalSearchQuery={query}
+            />
+          )}
+          {active === 'Learning Behavior' && (
+            <LearningBehaviorPage
+              notify={notify}
+              globalSearchQuery={query}
+            />
+          )}
+          {active === 'Socio-economic Factors' && (
+            <SocioEconomicFactorsPage
+              notify={notify}
+              globalSearchQuery={query}
+            />
+          )}
+          {active === 'Risk Overview' && (
+            <RiskOverview
+              notify={notify}
+              dashboardData={dashboardData}
+              globalSearchQuery={query}
+            />
+          )}
+          {active === 'Students' && (
+            <StudentsPage
+              notify={notify}
+              dashboardData={dashboardData}
+              globalSearchQuery={query}
+            />
+          )}
 
           {/* Default Dashboard */}
           <div className={['Risk Overview', 'Students', 'Attendance', 'Academic Performance', 'Learning Behavior', 'Socio-economic Factors'].includes(active) ? 'dashboard-hidden' : ''}>
@@ -383,6 +460,7 @@ export default function App() {
               </button>
             </div>
 
+            {/* 4 Stat Cards */}
             <div className="summary">
               <Stat
                 title="Total Students"
@@ -425,6 +503,7 @@ export default function App() {
               />
             </div>
 
+            {/* Analysis Row: 3 Panels */}
             <div className="analysis">
               <Panel title="Risk Distribution" cls="distribution">
                 <div className="donut" style={{ background: donutGradient }}>
@@ -445,7 +524,7 @@ export default function App() {
                     </p>
                   ))}
                 </div>
-                <footer>◷　Last updated: 13 May 2025, 10:30 AM</footer>
+                <footer>◷　Last updated: {date}, 10:30 AM</footer>
               </Panel>
 
               <Panel title="Risk Trend Over Time" cls="trend">
@@ -500,6 +579,7 @@ export default function App() {
               </section>
             </div>
 
+            {/* Lower Row: High Risk Table + Alerts & Effectiveness */}
             <div className="lower">
               <Panel
                 title="High Risk Students"
@@ -632,15 +712,74 @@ export default function App() {
   );
 }
 
+// 100% Original Stat Card Component Matching globals.css
+function Stat({ title, value, extra, note, icon, color, selected, onClick }) {
+  return (
+    <article
+      onClick={onClick}
+      className={'stat ' + color + (selected ? ' selected' : '')}
+      style={{ cursor: 'pointer' }}
+    >
+      <div>
+        <small>{title}</small>
+        <h2>
+          {value} {extra && <em>{extra}</em>}
+        </h2>
+        <p>
+          {note} <span>vs last semester</span>
+        </p>
+      </div>
+      <i>{icon}</i>
+    </article>
+  );
+}
 
+// 100% Original Panel Component Matching globals.css
+function Panel({ title, cls, action, onAction, children }) {
+  return (
+    <section className={'panel ' + (cls || '')}>
+      <h3>
+        {title}
+        {action && <button onClick={onAction}>{action}</button>}
+      </h3>
+      {children}
+    </section>
+  );
+}
 
-function RiskOverview({ notify, dashboardData }) {
+// 100% Original Alert Component Matching globals.css
+function Alert({ icon, title, text, time }) {
+  return (
+    <article className="alert">
+      <i>{icon}</i>
+      <span>
+        <b>{title}</b>
+        {text}
+        <time>{time}</time>
+      </span>
+    </article>
+  );
+}
+
+// 100% Original RiskOverview Component Matching globals.css
+function RiskOverview({ notify, dashboardData, globalSearchQuery = '' }) {
   const highStudents = dashboardData?.highRiskStudents || [
     { id: 'STU1003', name: 'Aarav Mehta', initials: 'AM', factors: 'Low Attendance (<60%), Low CGPA' },
     { id: 'STU1004', name: 'Pooja Sharma', initials: 'PS', factors: 'Attendance Below 75%, Low CGPA' },
     { id: 'STU1007', name: 'Vivek Yadav', initials: 'VY', factors: 'Attendance Below 75%, Low CGPA' },
     { id: 'STU1008', name: 'Neha Patel', initials: 'NP', factors: 'Low Attendance (<60%), 4 Backlogs' }
   ];
+
+  const filteredHighStudents = useMemo(() => {
+    if (!globalSearchQuery.trim()) return highStudents;
+    const q = globalSearchQuery.toLowerCase();
+    return highStudents.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.id.toLowerCase().includes(q) ||
+        (s.factors && s.factors.toLowerCase().includes(q))
+    );
+  }, [highStudents, globalSearchQuery]);
 
   const total = dashboardData?.stats?.totalStudents?.value || '8';
   const highCount = dashboardData?.stats?.highRisk?.value || '4';
@@ -655,132 +794,100 @@ function RiskOverview({ notify, dashboardData }) {
       <div className="risk-head">
         <div>
           <h1>
-            <ShieldCheck />
-            Risk Overview
+            <ShieldCheck style={{ display: 'inline', verticalAlign: 'middle', marginRight: 10 }} />
+            Risk Overview & Analytics
           </h1>
-          <p>Gain a comprehensive view of student risks across departments, factors and severity levels.</p>
+          <p>Deep predictive breakdown of student dropout factors and intervention priorities.</p>
         </div>
-        <span>
-          <button onClick={() => notify('Risk overview exported.')}>
-            <Download /> Export Overview
+        <div>
+          <button onClick={() => notify('Risk Assessment report downloaded.')}>
+            Download Risk Analysis
           </button>
-          <button onClick={() => notify('Filters opened.')}>
-            <Target /> Filters
-          </button>
-        </span>
+        </div>
       </div>
 
       <div className="risk-top">
-        <section className="risk-box dist">
-          <h3>Risk Distribution by Department</h3>
+        <div className="risk-box dist">
+          <h3>Department Risk Distribution</h3>
           <div className="dept-donut">
-            <b>
-              {total}<small>Total</small>
-            </b>
+            <b>{total}</b>
+            <small>Assessed</small>
           </div>
           <ul>
-            {[
-              'Computer Engineering　2',
-              'Information Technology　2',
-              'Electronics Engineering　2',
-              'Mechanical Engineering　2',
-              'Civil Engineering　0'
-            ].map((x, i) => (
-              <li key={x}>
-                <i className={'d' + i} />
-                {x}
-              </li>
-            ))}
+            <li><i /> Computer Engg.</li>
+            <li><i className="d1" /> Information Tech.</li>
+            <li><i className="d2" /> Electronics Engg.</li>
+            <li><i className="d3" /> Mechanical Engg.</li>
+            <li><i className="d4" /> Civil Engg.</li>
           </ul>
-          <small>▣　Based on active students</small>
-        </section>
+        </div>
 
-        <section className="risk-box breakdown">
+        <div className="risk-box breakdown">
           <h3>Risk Level Breakdown</h3>
-          {[
-            ['High Risk', `${highCount} (${highPct})`, 'red'],
-            ['Medium Risk', `${medCount} (${medPct})`, 'amber'],
-            ['Low Risk', `${lowCount} (${lowPct})`, 'green'],
-            ['Not Assessed', '0 (0.0%)', 'grey']
-          ].map((x) => (
-            <div key={x[0]}>
-              <b>{x[0]}</b>
-              <span>{x[1]}</span>
-              <em>
-                <i className={x[2]} />
-              </em>
-            </div>
-          ))}
-          <small>Percentage of total students</small>
-        </section>
+          <div>
+            <b>High Risk (Critical)</b> <span>{highCount} ({highPct})</span>
+            <em><i style={{ width: highPct }} /></em>
+          </div>
+          <div>
+            <b>Medium Risk (Moderate)</b> <span>{medCount} ({medPct})</span>
+            <em><i className="amber" style={{ width: medPct }} /></em>
+          </div>
+          <div>
+            <b>Low Risk (Good Standing)</b> <span>{lowCount} ({lowPct})</span>
+            <em><i className="green" style={{ width: lowPct }} /></em>
+          </div>
+        </div>
 
-        <section className="risk-box attention">
-          <h3>
-            Students Needing Attention{' '}
-            <button onClick={() => notify('All attention students opened.')}>View All</button>
-          </h3>
-          {highStudents.map((s, i) => (
-            <div key={s.id || i}>
-              <span className="person">{s.initials || 'ST'}</span>
-              <b>
-                {s.name}
-                <small>{s.id}</small>
-              </b>
-              <mark>High</mark>
-              <label>
-                {s.factors || 'Low Attendance / CGPA'}
-                <small>Risk Reason</small>
-              </label>
-            </div>
-          ))}
-          <a onClick={() => notify('All students opened.')}>View All Students　→</a>
-        </section>
+        <div className="risk-box attention">
+          <h3>Critical Attention Required</h3>
+          {filteredHighStudents.length === 0 ? (
+            <p style={{ color: '#64748b', fontSize: 12, padding: 8 }}>No students match search.</p>
+          ) : (
+            filteredHighStudents.slice(0, 3).map((s) => (
+              <div key={s.id}>
+                <b>{s.name} ({s.id})</b>
+                <mark>High</mark>
+                <button onClick={() => notify(`Intervention started for ${s.name}`)}>
+                  Intervene
+                </button>
+              </div>
+            ))
+          )}
+          <a onClick={() => notify('Opening all critical intervention cases.')}>View all critical cases →</a>
+        </div>
       </div>
-    </div>
-  );
-}
 
-function Stat({ title, value, extra, note, icon, color, selected, onClick }) {
-  return (
-    <article
-      className={`stat ${color} ${selected ? 'selected' : ''}`}
-      onClick={onClick}
-    >
-      <div>
-        <small>{title}</small>
-        <h2>
-          {value} {extra && <em>{extra}</em>}
-        </h2>
-        <p>
-          <span>{note}</span> from last month
-        </p>
+      <div className="risk-bottom">
+        <div className="risk-box gauge">
+          <h3>Retention Health Index</h3>
+          <b>
+            84.6% <small>Institutional Stability Score</small>
+          </b>
+        </div>
+        <div className="risk-box trend-summary">
+          <h3>Early Warning Signals</h3>
+          <p>
+            Attendance Drops (&gt;15%) <b>4 Students</b>
+          </p>
+          <p>
+            Failed Internal Assessments <b>5 Students</b>
+          </p>
+          <p>
+            Fee Defaulters / Inactive <b>3 Students</b>
+          </p>
+        </div>
+        <div className="risk-box heat">
+          <h3>Semester-wise Risk Matrix</h3>
+          <p>
+            <span>Sem 4</span>
+            <i>Low</i><i>Low</i><i style={{ background: '#fff2e2' }}>Med</i><i style={{ background: '#ffe6e8' }}>High</i>
+          </p>
+          <p>
+            <span>Sem 6</span>
+            <i>Low</i><i style={{ background: '#fff2e2' }}>Med</i><i>Low</i><i style={{ background: '#ffe6e8' }}>High</i>
+          </p>
+        </div>
       </div>
-      <i>{icon}</i>
-    </article>
-  );
-}
-
-function Panel({ title, cls = '', action, onAction, children }) {
-  return (
-    <section className={`panel ${cls}`}>
-      <h3>
-        {title}
-        {action && <button onClick={onAction}>{action}</button>}
-      </h3>
-      {children}
-    </section>
-  );
-}
-
-function Alert({ icon, title, text, time }) {
-  return (
-    <div className="alert">
-      <i>{icon}</i>
-      <span>
-        <b>{title}</b>
-        {text}
-        <small>{time}</small>
-      </span>
     </div>
   );
 }

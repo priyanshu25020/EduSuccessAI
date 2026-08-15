@@ -45,7 +45,75 @@ import * as XLSX from 'xlsx';
 import { attendanceService } from '../services/attendanceService';
 import '../styles/attendance.css';
 
-// Initial Fallback Student Dataset (matches DB exactly)
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const MONTH_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
+// Helper to format date string e.g. "15 Aug 2026"
+const formatDateStr = (day, monthIdx, year = 2026) => {
+  return `${day} ${MONTH_SHORT[monthIdx]} ${year}`;
+};
+
+// Parse date string like "15 Aug 2026"
+const parseDateStr = (str = '15 Aug 2026') => {
+  const parts = str.trim().split(' ');
+  const day = parts.length === 3 ? parseInt(parts[0], 10) || 15 : 15;
+  const mIdx = parts.length === 3 && MONTH_SHORT.indexOf(parts[1]) !== -1 ? MONTH_SHORT.indexOf(parts[1]) : 7;
+  const year = parts.length === 3 ? parseInt(parts[2], 10) || 2026 : 2026;
+  const monthStr = MONTH_SHORT[mIdx];
+  const daysInMonth = new Date(year, mIdx + 1, 0).getDate();
+  const monthKey = `${monthStr} ${year}`;
+  return { day, month: mIdx, monthStr, year, daysInMonth, monthKey };
+};
+
+// Calculate student's monthly attendance percentage strictly against the total days in the active month
+export const calculateStudentMonthlyStats = (student, targetDate = '15 Aug 2026') => {
+  const { month, monthStr, year, daysInMonth, monthKey } = parseDateStr(targetDate);
+  const historyEntries = Object.entries(student.attendanceHistory || {}).filter(
+    ([dKey, st]) => dKey.includes(monthKey) && st && st !== 'Not Marked' && st !== '-'
+  );
+
+  let attended = 0;
+  let pCount = 0, aCount = 0, lCount = 0, lvCount = 0;
+
+  historyEntries.forEach(([_, st]) => {
+    if (st === 'Present') {
+      attended += 1;
+      pCount++;
+    } else if (st === 'Late') {
+      attended += 0.5;
+      lCount++;
+    } else if (st === 'Absent') {
+      aCount++;
+    } else if (st === 'Leave') {
+      lvCount++;
+    }
+  });
+
+  // Calculate percentage out of total days in that month (e.g. 31 in Aug)
+  const pct = daysInMonth > 0 ? parseFloat(((attended / daysInMonth) * 100).toFixed(1)) : 0;
+
+  return {
+    pct,
+    attendedDays: attended,
+    markedCount: historyEntries.length,
+    daysInMonth,
+    monthName: MONTH_NAMES[month],
+    monthKey,
+    presentCount: pCount,
+    absentCount: aCount,
+    lateCount: lCount,
+    leaveCount: lvCount
+  };
+};
+
+// 8 Verified Students (Clean slate: ZERO initial fake/auto markings, all Not Marked, 0% attendance)
 const INITIAL_STUDENTS = [
   {
     id: 'STU1001',
@@ -57,9 +125,12 @@ const INITIAL_STUDENTS = [
     semester: 4,
     subject: 'Data Structures',
     section: 'Section A',
-    status: 'Present',
-    attendancePct: 87,
-    lastUpdated: '13 May 2025'
+    status: 'Not Marked',
+    attendancePct: 0,
+    attendedDays: 0,
+    markedDaysCount: 0,
+    attendanceHistory: {},
+    lastUpdated: '-'
   },
   {
     id: 'STU1002',
@@ -71,9 +142,12 @@ const INITIAL_STUDENTS = [
     semester: 4,
     subject: 'Database Mgmt.',
     section: 'Section B',
-    status: 'Present',
-    attendancePct: 92,
-    lastUpdated: '13 May 2025'
+    status: 'Not Marked',
+    attendancePct: 0,
+    attendedDays: 0,
+    markedDaysCount: 0,
+    attendanceHistory: {},
+    lastUpdated: '-'
   },
   {
     id: 'STU1003',
@@ -85,9 +159,12 @@ const INITIAL_STUDENTS = [
     semester: 4,
     subject: 'Digital Logic',
     section: 'Section A',
-    status: 'Absent',
-    attendancePct: 45,
-    lastUpdated: '13 May 2025'
+    status: 'Not Marked',
+    attendancePct: 0,
+    attendedDays: 0,
+    markedDaysCount: 0,
+    attendanceHistory: {},
+    lastUpdated: '-'
   },
   {
     id: 'STU1004',
@@ -99,9 +176,12 @@ const INITIAL_STUDENTS = [
     semester: 4,
     subject: 'Thermodynamics',
     section: 'Section B',
-    status: 'Late',
-    attendancePct: 68,
-    lastUpdated: '13 May 2025'
+    status: 'Not Marked',
+    attendancePct: 0,
+    attendedDays: 0,
+    markedDaysCount: 0,
+    attendanceHistory: {},
+    lastUpdated: '-'
   },
   {
     id: 'STU1005',
@@ -113,9 +193,12 @@ const INITIAL_STUDENTS = [
     semester: 6,
     subject: 'Operating Systems',
     section: 'Section A',
-    status: 'Present',
-    attendancePct: 83,
-    lastUpdated: '13 May 2025'
+    status: 'Not Marked',
+    attendancePct: 0,
+    attendedDays: 0,
+    markedDaysCount: 0,
+    attendanceHistory: {},
+    lastUpdated: '-'
   },
   {
     id: 'STU1006',
@@ -127,9 +210,12 @@ const INITIAL_STUDENTS = [
     semester: 6,
     subject: 'Web Development',
     section: 'Section B',
-    status: 'Present',
-    attendancePct: 90,
-    lastUpdated: '13 May 2025'
+    status: 'Not Marked',
+    attendancePct: 0,
+    attendedDays: 0,
+    markedDaysCount: 0,
+    attendanceHistory: {},
+    lastUpdated: '-'
   },
   {
     id: 'STU1007',
@@ -141,9 +227,12 @@ const INITIAL_STUDENTS = [
     semester: 6,
     subject: 'Microprocessors',
     section: 'Section A',
-    status: 'Late',
-    attendancePct: 72,
-    lastUpdated: '13 May 2025'
+    status: 'Not Marked',
+    attendancePct: 0,
+    attendedDays: 0,
+    markedDaysCount: 0,
+    attendanceHistory: {},
+    lastUpdated: '-'
   },
   {
     id: 'STU1008',
@@ -155,19 +244,32 @@ const INITIAL_STUDENTS = [
     semester: 6,
     subject: 'Machine Design',
     section: 'Section B',
-    status: 'Absent',
-    attendancePct: 30,
-    lastUpdated: '13 May 2025'
+    status: 'Not Marked',
+    attendancePct: 0,
+    attendedDays: 0,
+    markedDaysCount: 0,
+    attendanceHistory: {},
+    lastUpdated: '-'
   }
 ];
 
-export default function AttendancePage({ notify = () => {} }) {
-  // Filter states
-  const [date, setDate] = useState('13 May 2025');
+export default function AttendancePage({ notify = () => {}, globalDate, setGlobalDate, globalSearchQuery = '' }) {
+  // Calendar & Filter states
+  const [localDate, setLocalDate] = useState(globalDate || '15 Aug 2026');
+  const date = globalDate || localDate;
+  const setDate = (newDate) => {
+    setLocalDate(newDate);
+    if (setGlobalDate) setGlobalDate(newDate);
+  };
+
   const [department, setDepartment] = useState('All Departments');
   const [semester, setSemester] = useState('All Semesters');
   const [subject, setSubject] = useState('All Subjects');
   const [section, setSection] = useState('All Sections');
+
+  // Calendar Modal Navigation State
+  const [calMonth, setCalMonth] = useState(7); // August
+  const [calYear, setCalYear] = useState(2026);
 
   // Dropdown open controls
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -189,9 +291,6 @@ export default function AttendancePage({ notify = () => {} }) {
   const [showTakeActionModal, setShowTakeActionModal] = useState(false);
   const [showOverallModal, setShowOverallModal] = useState(false);
 
-  // Trend State
-  const [trendTimeframe, setTrendTimeframe] = useState('This Month');
-
   // Low Attendance Modal Filter
   const [lowModalDept, setLowModalDept] = useState('All');
   const [lowModalSec, setLowModalSec] = useState('All');
@@ -200,7 +299,7 @@ export default function AttendancePage({ notify = () => {} }) {
   const [markForm, setMarkForm] = useState({
     rollNo: 'CE2021001',
     status: 'Present',
-    date: '13 May 2025',
+    date: '15 Aug 2026',
     subject: 'Data Structures',
     remark: ''
   });
@@ -215,12 +314,36 @@ export default function AttendancePage({ notify = () => {} }) {
   const [actionType, setActionType] = useState('sms');
   const [actionCustomNote, setActionCustomNote] = useState('');
 
+  // Synchronize calMonth and calYear whenever date changes
+  useEffect(() => {
+    const parsed = parseDateStr(date);
+    setCalMonth(parsed.month);
+    setCalYear(parsed.year);
+  }, [date]);
+
   // Fetch live records from backend API
-  const loadData = async () => {
+  const loadData = async (activeDate = date) => {
     try {
-      const response = await attendanceService.getRecords();
+      const response = await attendanceService.getRecords({ date: activeDate });
       if (response && response.data && response.data.length > 0) {
-        setStudentsList(response.data);
+        setStudentsList((prev) => {
+          return response.data.map((r) => {
+            const existing = prev.find((p) => p.rollNo === r.rollNo || p.id === r.id);
+            const history = r.attendanceHistory || existing?.attendanceHistory || {};
+            const dailyStatus = history[activeDate] || 'Not Marked';
+            const stats = calculateStudentMonthlyStats({ ...r, attendanceHistory: history }, activeDate);
+            return {
+              ...r,
+              attendanceHistory: history,
+              attendancePct: stats.pct,
+              attendedDays: stats.attendedDays,
+              markedDaysCount: stats.markedCount,
+              daysInMonth: stats.daysInMonth,
+              status: dailyStatus,
+              lastUpdated: stats.markedCount > 0 ? (history[activeDate] ? activeDate : '-') : '-'
+            };
+          });
+        });
       }
     } catch (e) {
       console.warn('Using local fallback for attendance:', e);
@@ -228,8 +351,8 @@ export default function AttendancePage({ notify = () => {} }) {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(date);
+  }, [date]);
 
   // Close dropdowns and action menu on outside click
   useEffect(() => {
@@ -253,7 +376,7 @@ export default function AttendancePage({ notify = () => {} }) {
   useEffect(() => {
     setCurrentPage(1);
     setActiveActionMenuId(null);
-  }, [department, semester, subject, section, rowsPerPage]);
+  }, [department, semester, subject, section, rowsPerPage, date, globalSearchQuery]);
 
   // Filter Options
   const departmentOptions = [
@@ -291,9 +414,32 @@ export default function AttendancePage({ notify = () => {} }) {
 
   const sectionOptions = ['All Sections', 'Section A', 'Section B', 'Section C', 'Section D'];
 
+  // Current parsed date parameters
+  const { day: activeDay, month: activeMonth, year: activeYear, daysInMonth: activeDaysInMonth } = useMemo(
+    () => parseDateStr(date),
+    [date]
+  );
+
+  // Real-time calculation of student records for active date & month
+  const processedStudents = useMemo(() => {
+    return studentsList.map((stu) => {
+      const dailyStatus = stu.attendanceHistory?.[date] || 'Not Marked';
+      const stats = calculateStudentMonthlyStats(stu, date);
+      return {
+        ...stu,
+        status: dailyStatus,
+        attendancePct: stats.pct,
+        attendedDays: stats.attendedDays,
+        markedDaysCount: stats.markedCount,
+        daysInMonth: stats.daysInMonth,
+        lastUpdated: stats.markedCount > 0 ? (stu.attendanceHistory?.[date] ? date : (stu.lastUpdated !== '-' ? stu.lastUpdated : '-')) : '-'
+      };
+    });
+  }, [studentsList, date]);
+
   // Filtering Logic
   const filteredStudents = useMemo(() => {
-    return studentsList.filter((stu) => {
+    return processedStudents.filter((stu) => {
       if (department !== 'All Departments' && stu.dept !== department) return false;
       if (semester !== 'All Semesters') {
         const semNum = semester.replace('Semester ', '').trim();
@@ -301,9 +447,22 @@ export default function AttendancePage({ notify = () => {} }) {
       }
       if (subject !== 'All Subjects' && stu.subject !== subject) return false;
       if (section !== 'All Sections' && stu.section !== section) return false;
+
+      if (globalSearchQuery && globalSearchQuery.trim()) {
+        const q = globalSearchQuery.trim().toLowerCase();
+        const match =
+          (stu.name && stu.name.toLowerCase().includes(q)) ||
+          (stu.id && stu.id.toLowerCase().includes(q)) ||
+          (stu.rollNo && stu.rollNo.toLowerCase().includes(q)) ||
+          (stu.dept && stu.dept.toLowerCase().includes(q)) ||
+          (stu.subject && stu.subject.toLowerCase().includes(q)) ||
+          (stu.section && stu.section.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+
       return true;
     });
-  }, [studentsList, department, semester, subject, section]);
+  }, [processedStudents, department, semester, subject, section, globalSearchQuery]);
 
   // Paginated Rows (Strict 10 per page)
   const totalCount = filteredStudents.length;
@@ -313,32 +472,38 @@ export default function AttendancePage({ notify = () => {} }) {
     return filteredStudents.slice(start, start + rowsPerPage);
   }, [filteredStudents, currentPage, rowsPerPage]);
 
-  // 100% REAL Dynamic Calculations from Student Database
-  const totalEnrolled = studentsList.length;
-  const presentStudents = studentsList.filter((s) => s.status === 'Present');
-  const absentStudents = studentsList.filter((s) => s.status === 'Absent');
-  const lateStudents = studentsList.filter((s) => s.status === 'Late');
-  const leaveStudents = studentsList.filter((s) => s.status === 'Leave');
+  // 100% REAL Dynamic Calculations from Student Database for selected date
+  const totalEnrolled = processedStudents.length;
+  const presentStudents = processedStudents.filter((s) => s.status === 'Present');
+  const absentStudents = processedStudents.filter((s) => s.status === 'Absent');
+  const lateStudents = processedStudents.filter((s) => s.status === 'Late');
+  const leaveStudents = processedStudents.filter((s) => s.status === 'Leave');
+  const notMarkedStudents = processedStudents.filter((s) => s.status === 'Not Marked');
 
   const presentCount = presentStudents.length;
   const absentCount = absentStudents.length;
   const lateCount = lateStudents.length;
   const leaveCount = leaveStudents.length;
+  const notMarkedCount = notMarkedStudents.length;
+
+  const totalMarkedOnDate = presentCount + absentCount + lateCount + leaveCount;
 
   const presentPct = totalEnrolled > 0 ? ((presentCount / totalEnrolled) * 100).toFixed(1) : '0.0';
   const absentPct = totalEnrolled > 0 ? ((absentCount / totalEnrolled) * 100).toFixed(1) : '0.0';
   const latePct = totalEnrolled > 0 ? ((lateCount / totalEnrolled) * 100).toFixed(1) : '0.0';
   const leavePct = totalEnrolled > 0 ? ((leaveCount / totalEnrolled) * 100).toFixed(1) : '0.0';
 
-  const sumPct = studentsList.reduce((acc, s) => acc + (s.attendancePct ?? 80), 0);
+  // Institutional Month-Wise Average (sum of students' monthly percentage / total enrolled)
+  const studentsWithMarks = processedStudents.filter((s) => s.markedDaysCount > 0);
+  const sumPct = processedStudents.reduce((acc, s) => acc + s.attendancePct, 0);
   const overallAvgPct = totalEnrolled > 0 ? (sumPct / totalEnrolled).toFixed(1) : '0.0';
 
-  // Low attendance students (< 75%)
+  // Low attendance students: Students where attendance has been marked AND monthly percentage < 75%
   const lowAttendanceStudents = useMemo(() => {
-    return studentsList.filter((s) => (s.attendancePct ?? 80) < 75);
-  }, [studentsList]);
+    return processedStudents.filter((s) => s.markedDaysCount > 0 && s.attendancePct < 75);
+  }, [processedStudents]);
 
-  // Dynamic Department-wise Stats directly tied to studentsList state
+  // Dynamic Department-wise Stats strictly calculated from month-wise percentages
   const departmentCards = useMemo(() => {
     const depts = [
       { name: 'Computer Engg.', icon: Laptop, color: 'blue' },
@@ -349,12 +514,12 @@ export default function AttendancePage({ notify = () => {} }) {
     ];
 
     return depts.map((d) => {
-      const dStudents = studentsList.filter((s) => s.dept === d.name);
+      const dStudents = processedStudents.filter((s) => s.dept === d.name);
       const count = dStudents.length;
       if (count === 0) {
         return { name: d.name, percentage: '0.0%', count: 0, Icon: d.icon, color: d.color };
       }
-      const sum = dStudents.reduce((acc, s) => acc + (s.attendancePct ?? 80), 0);
+      const sum = dStudents.reduce((acc, s) => acc + s.attendancePct, 0);
       const avg = (sum / count).toFixed(1);
       return {
         name: d.name,
@@ -364,39 +529,38 @@ export default function AttendancePage({ notify = () => {} }) {
         color: d.color
       };
     });
-  }, [studentsList]);
+  }, [processedStudents]);
 
-  // Dynamic Trend Points based on real data
+  // Dynamic Trend Points for current month: 100% dynamic without fake flat lines
   const trendData = useMemo(() => {
-    const avgNum = parseFloat(overallAvgPct) || 75;
-    if (trendTimeframe === 'This Month') {
-      return {
-        labels: ['1 May', '6 May', '11 May', '16 May', '21 May', '26 May', '31 May'],
-        points: [
-          [35, 120 - Math.min(100, Math.max(10, avgNum - 6))],
-          [75, 120 - Math.min(100, Math.max(10, avgNum - 2))],
-          [120, 120 - Math.min(100, Math.max(10, avgNum + 4))],
-          [165, 120 - Math.min(100, Math.max(10, avgNum - 4))],
-          [210, 120 - Math.min(100, Math.max(10, avgNum + 2))],
-          [255, 120 - Math.min(100, Math.max(10, avgNum + 6))],
-          [285, 120 - Math.min(100, Math.max(10, avgNum))]
-        ]
-      };
-    } else {
-      return {
-        labels: ['1 Apr', '6 Apr', '11 Apr', '16 Apr', '21 Apr', '26 Apr', '30 Apr'],
-        points: [
-          [35, 120 - Math.min(100, Math.max(10, avgNum - 12))],
-          [75, 120 - Math.min(100, Math.max(10, avgNum - 8))],
-          [120, 120 - Math.min(100, Math.max(10, avgNum - 5))],
-          [165, 120 - Math.min(100, Math.max(10, avgNum - 2))],
-          [210, 120 - Math.min(100, Math.max(10, avgNum - 4))],
-          [255, 120 - Math.min(100, Math.max(10, avgNum - 1))],
-          [285, 120 - Math.min(100, Math.max(10, avgNum - 3))]
-        ]
-      };
-    }
-  }, [trendTimeframe, overallAvgPct]);
+    const daysInM = new Date(activeYear, activeMonth + 1, 0).getDate();
+    const intervals = [1, Math.min(6, daysInM), Math.min(11, daysInM), Math.min(16, daysInM), Math.min(21, daysInM), Math.min(26, daysInM), daysInM];
+    const uniqueDays = Array.from(new Set(intervals));
+
+    const labels = uniqueDays.map((d) => `${d} ${MONTH_SHORT[activeMonth]}`);
+    let totalMarksInMonth = 0;
+
+    const points = uniqueDays.map((dNum, idx) => {
+      const dStr = formatDateStr(dNum, activeMonth, activeYear);
+      const studentsMarkedOnDay = studentsList.filter(
+        (s) => s.attendanceHistory?.[dStr] && s.attendanceHistory[dStr] !== 'Not Marked' && s.attendanceHistory[dStr] !== '-'
+      );
+      let dayAvg = 0;
+      if (studentsMarkedOnDay.length > 0) {
+        totalMarksInMonth += studentsMarkedOnDay.length;
+        const attendedOnDay =
+          studentsMarkedOnDay.filter((s) => s.attendanceHistory[dStr] === 'Present').length +
+          0.5 * studentsMarkedOnDay.filter((s) => s.attendanceHistory[dStr] === 'Late').length;
+        dayAvg = Math.round((attendedOnDay / studentsMarkedOnDay.length) * 100);
+      }
+      const x = 35 + idx * (250 / (uniqueDays.length - 1 || 1));
+      // y goes from 110 (0%) to 20 (100%)
+      const y = Math.max(20, Math.min(110, 110 - (dayAvg * 90) / 100));
+      return [x, y, dayAvg, dNum];
+    });
+
+    return { labels, points, totalMarksInMonth };
+  }, [studentsList, activeMonth, activeYear]);
 
   // Selection handlers
   const handleSelectAll = (e) => {
@@ -417,20 +581,32 @@ export default function AttendancePage({ notify = () => {} }) {
     );
   };
 
-  // Quick Status change from action menu (100% isolated to target student)
+  // 100% REAL Dynamic Status Change: updates history[date] and recalculates student stats month-wise cleanly
   const handleQuickStatusChange = async (targetKey, newStatus) => {
     setStudentsList((prev) =>
       prev.map((s, idx) => {
         const studentKey = s.rollNo && s.rollNo !== '-' ? String(s.rollNo) : (s.id && s.id !== '-' ? String(s.id) : `stu-idx-${idx}`);
         if (studentKey === targetKey || s.rollNo === targetKey || s.id === targetKey) {
-          const oldPct = s.attendancePct ?? 80;
-          const newPct =
-            newStatus === 'Present'
-              ? Math.min(100, oldPct + 2)
-              : newStatus === 'Absent'
-              ? Math.max(10, oldPct - 3)
-              : oldPct;
-          return { ...s, status: newStatus, attendancePct: newPct, lastUpdated: date };
+          const prevStatusOnDate = s.attendanceHistory?.[date] || 'Not Marked';
+          
+          // If already set to this status on this date, DO NOT change percentage
+          if (prevStatusOnDate === newStatus) {
+            return s;
+          }
+
+          const updatedHistory = { ...(s.attendanceHistory || {}), [date]: newStatus };
+          const stats = calculateStudentMonthlyStats({ ...s, attendanceHistory: updatedHistory }, date);
+
+          return {
+            ...s,
+            status: newStatus,
+            attendancePct: stats.pct,
+            attendedDays: stats.attendedDays,
+            markedDaysCount: stats.markedCount,
+            daysInMonth: stats.daysInMonth,
+            lastUpdated: date,
+            attendanceHistory: updatedHistory
+          };
         }
         return s;
       })
@@ -441,7 +617,7 @@ export default function AttendancePage({ notify = () => {} }) {
     } catch (e) {
       console.warn('Backend mark sync:', e);
     }
-    notify(`Status updated to "${newStatus}" for student ${targetKey}.`);
+    notify(`Marked "${newStatus}" on ${date} for student ${targetKey}.`);
   };
 
   // Mark Attendance Modal Submit
@@ -449,23 +625,24 @@ export default function AttendancePage({ notify = () => {} }) {
     e.preventDefault();
     const student = studentsList.find((s) => s.rollNo === markForm.rollNo || s.id === markForm.rollNo);
     const studentName = student ? student.name : markForm.rollNo;
+    const targetDate = markForm.date || date;
 
     setStudentsList((prev) =>
       prev.map((s) => {
         if (s.rollNo === markForm.rollNo || s.id === markForm.rollNo) {
-          const oldPct = s.attendancePct ?? 80;
-          const newPct =
-            markForm.status === 'Present'
-              ? Math.min(100, oldPct + 2)
-              : markForm.status === 'Absent'
-              ? Math.max(10, oldPct - 3)
-              : oldPct;
+          const updatedHistory = { ...(s.attendanceHistory || {}), [targetDate]: markForm.status };
+          const stats = calculateStudentMonthlyStats({ ...s, attendanceHistory: updatedHistory }, targetDate);
+
           return {
             ...s,
-            status: markForm.status,
-            attendancePct: newPct,
+            status: targetDate === date ? markForm.status : (s.attendanceHistory?.[date] || 'Not Marked'),
+            attendancePct: stats.pct,
+            attendedDays: stats.attendedDays,
+            markedDaysCount: stats.markedCount,
+            daysInMonth: stats.daysInMonth,
             subject: markForm.subject || s.subject,
-            lastUpdated: markForm.date
+            lastUpdated: targetDate,
+            attendanceHistory: updatedHistory
           };
         }
         return s;
@@ -476,7 +653,7 @@ export default function AttendancePage({ notify = () => {} }) {
       await attendanceService.markAttendance({
         rollNo: markForm.rollNo,
         status: markForm.status,
-        date: markForm.date,
+        date: targetDate,
         subject: markForm.subject
       });
     } catch (err) {
@@ -484,7 +661,7 @@ export default function AttendancePage({ notify = () => {} }) {
     }
 
     setShowMarkModal(false);
-    notify(`Attendance recorded: "${markForm.status}" for ${studentName} (${markForm.rollNo}).`);
+    notify(`Recorded "${markForm.status}" on ${targetDate} for ${studentName} (${markForm.rollNo}).`);
   };
 
   // Upload Attendance Excel Parser
@@ -537,14 +714,22 @@ export default function AttendancePage({ notify = () => {} }) {
             row['Student Name'] === s.name
         );
         if (matched) {
-          const rawAtt = matched['Attendance'] ?? matched['Attendance %'] ?? matched['attendancePct'];
-          const newPct = rawAtt && rawAtt !== '-' ? parseFloat(String(rawAtt).replace('%', '')) : s.attendancePct;
-          const rawStatus = matched['Status'] ?? matched['status'];
+          const targetDate = matched['Date'] || matched['date'] || date;
+          const statusRaw = matched['Status'] ?? matched['status'];
+          const updatedHistory = { ...(s.attendanceHistory || {}) };
+          if (statusRaw && statusRaw !== '-' && statusRaw !== 'Not Marked') {
+            updatedHistory[targetDate] = statusRaw;
+          }
+          const stats = calculateStudentMonthlyStats({ ...s, attendanceHistory: updatedHistory }, targetDate);
           return {
             ...s,
-            attendancePct: !isNaN(newPct) ? newPct : s.attendancePct,
-            status: rawStatus && rawStatus !== '-' ? rawStatus : s.status,
-            lastUpdated: date
+            status: targetDate === date ? (statusRaw || (s.attendanceHistory?.[date] || 'Not Marked')) : (s.attendanceHistory?.[date] || 'Not Marked'),
+            attendancePct: stats.pct,
+            attendedDays: stats.attendedDays,
+            markedDaysCount: stats.markedCount,
+            daysInMonth: stats.daysInMonth,
+            lastUpdated: targetDate,
+            attendanceHistory: updatedHistory
           };
         }
         return s;
@@ -559,21 +744,21 @@ export default function AttendancePage({ notify = () => {} }) {
 
   // Download Sample Attendance Template
   const handleDownloadAttendanceTemplate = () => {
-    const templateData = studentsList.map((s) => ({
+    const templateData = processedStudents.map((s) => ({
       'Enrollment No.': s.rollNo,
       'Student Name': s.name,
       'Department': s.dept,
       'Semester': s.semester,
       'Section': s.section,
       'Subject': s.subject,
-      'Attendance %': `${s.attendancePct}%`,
-      'Status': s.status
+      'Date': date,
+      'Status': s.status !== 'Not Marked' ? s.status : 'Present'
     }));
 
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Attendance_Template');
-    XLSX.writeFile(wb, 'EduSuccess_Attendance_Template.xlsx');
+    XLSX.writeFile(wb, `EduSuccess_Attendance_Template_${date.replace(/ /g, '_')}.xlsx`);
     notify('Sample attendance template downloaded.');
   };
 
@@ -586,16 +771,16 @@ export default function AttendancePage({ notify = () => {} }) {
       'Semester': s.semester,
       'Section': s.section,
       'Subject': s.subject,
-      'Attendance Percentage': `${s.attendancePct}%`,
-      'Daily Status': s.status,
-      'Last Record Date': s.lastUpdated
+      'Attendance Percentage': `${s.attendancePct}% (${s.attendedDays}/${s.daysInMonth} days)`,
+      'Status on Date': s.status,
+      'Record Date': date
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Daily_Attendance');
     XLSX.writeFile(wb, `EduSuccess_Attendance_Report_${date.replace(/ /g, '_')}.xlsx`);
-    notify(`Exported ${filteredStudents.length} student attendance records to Excel.`);
+    notify(`Exported ${filteredStudents.length} student attendance records for ${date} to Excel.`);
   };
 
   // Take Action Execution
@@ -632,9 +817,31 @@ export default function AttendancePage({ notify = () => {} }) {
     });
   }, [lowAttendanceStudents, lowModalDept, lowModalSec]);
 
+  // Calendar Month Navigation Helpers
+  const daysInCalMonth = useMemo(() => new Date(calYear, calMonth + 1, 0).getDate(), [calYear, calMonth]);
+  const startDayOfCalMonth = useMemo(() => new Date(calYear, calMonth, 1).getDay(), [calYear, calMonth]); // 0=Sun, 6=Sat
+
+  const handlePrevMonth = () => {
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear((y) => y - 1);
+    } else {
+      setCalMonth((m) => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear((y) => y + 1);
+    } else {
+      setCalMonth((m) => m + 1);
+    }
+  };
+
   return (
     <div className="attendance-page">
-      {/* 1. Header with exact classes */}
+      {/* 1. Header with original layout & classes */}
       <div className="att-header">
         <div className="att-title-group">
           <div className="att-icon-badge">
@@ -647,7 +854,13 @@ export default function AttendancePage({ notify = () => {} }) {
         </div>
 
         <div className="att-actions">
-          <button className="btn-primary-purple" onClick={() => setShowMarkModal(true)}>
+          <button
+            className="btn-primary-purple"
+            onClick={() => {
+              setMarkForm((prev) => ({ ...prev, date }));
+              setShowMarkModal(true);
+            }}
+          >
             Mark Attendance <ChevronDown style={{ width: 14 }} />
           </button>
           <button className="btn-outline-action" onClick={() => setShowUploadModal(true)}>
@@ -674,7 +887,7 @@ export default function AttendancePage({ notify = () => {} }) {
             </span>
             <div className="att-stat-value">{overallAvgPct}%</div>
             <div className="att-stat-subtext green">
-              <span>↑ 5.2%</span> from last month
+              <span>{studentsWithMarks.length} marked</span> of {totalEnrolled} students ({MONTH_SHORT[activeMonth]} {activeYear})
             </div>
           </div>
           <div className="att-stat-icon-wrapper">
@@ -698,13 +911,13 @@ export default function AttendancePage({ notify = () => {} }) {
           </div>
         </div>
 
-        {/* Card 2: Present Students */}
+        {/* Card 2: Present Students on Selected Date */}
         <div className="att-stat-card">
           <div className="att-stat-info">
             <span className="att-stat-title green">Present Students</span>
             <div className="att-stat-value">{presentCount.toLocaleString()}</div>
             <div className="att-stat-subtext green">
-              <span>{presentPct}%</span> of total students
+              <span>{presentPct}%</span> on {date}
             </div>
           </div>
           <div className="att-stat-icon-wrapper">
@@ -714,13 +927,13 @@ export default function AttendancePage({ notify = () => {} }) {
           </div>
         </div>
 
-        {/* Card 3: Absent Students */}
+        {/* Card 3: Absent Students on Selected Date */}
         <div className="att-stat-card">
           <div className="att-stat-info">
             <span className="att-stat-title amber">Absent Students</span>
             <div className="att-stat-value">{absentCount.toLocaleString()}</div>
             <div className="att-stat-subtext amber">
-              <span>{absentPct}%</span> of total students
+              <span>{absentPct}%</span> on {date}
             </div>
           </div>
           <div className="att-stat-icon-wrapper">
@@ -730,13 +943,13 @@ export default function AttendancePage({ notify = () => {} }) {
           </div>
         </div>
 
-        {/* Card 4: Late Students */}
+        {/* Card 4: Late Students on Selected Date */}
         <div className="att-stat-card">
           <div className="att-stat-info">
             <span className="att-stat-title red">Late Students</span>
             <div className="att-stat-value">{lateCount.toLocaleString()}</div>
             <div className="att-stat-subtext red">
-              <span>{latePct}%</span> of total students
+              <span>{latePct}%</span> on {date}
             </div>
           </div>
           <div className="att-stat-icon-wrapper">
@@ -747,38 +960,21 @@ export default function AttendancePage({ notify = () => {} }) {
         </div>
       </div>
 
-      {/* 3. Filters Bar exact to the screenshot */}
+      {/* 3. Original Clean Filters Bar */}
       <div className="att-filter-bar">
         <div className="att-filter-controls">
-          {/* Select Date */}
+          {/* Select Date (Opens Calendar Modal or Quick Date Picker) */}
           <div className="att-dropdown-field">
             <label>Select Date</label>
             <button
               className={`att-dropdown-btn ${openDropdown === 'date' ? 'active' : ''}`}
-              onClick={() => setOpenDropdown(openDropdown === 'date' ? null : 'date')}
+              onClick={() => setShowCalendarModal(true)}
             >
               <span className="icon-left">
                 <Calendar style={{ width: 14 }} /> {date}
               </span>
               <ChevronDown className="chevron" style={{ width: 14 }} />
             </button>
-            {openDropdown === 'date' && (
-              <div className="att-dropdown-menu">
-                {['13 May 2025', '12 May 2025', '11 May 2025', '10 May 2025', '9 May 2025'].map((d) => (
-                  <button
-                    key={d}
-                    className={`att-dropdown-item ${date === d ? 'selected' : ''}`}
-                    onClick={() => {
-                      setDate(d);
-                      setOpenDropdown(null);
-                      notify(`Date selected: ${d}`);
-                    }}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Department */}
@@ -900,7 +1096,7 @@ export default function AttendancePage({ notify = () => {} }) {
           {/* Filter Button */}
           <button
             className="att-btn-filter"
-            onClick={() => notify(`Applied filters: ${department}, ${semester}, ${section}`)}
+            onClick={() => notify(`Applied filters for ${date}: ${department}, ${semester}, ${section}`)}
           >
             <Filter style={{ width: 14 }} /> Filters
           </button>
@@ -914,8 +1110,8 @@ export default function AttendancePage({ notify = () => {} }) {
               setSemester('All Semesters');
               setSubject('All Subjects');
               setSection('All Sections');
-              setDate('13 May 2025');
-              notify('Attendance filters cleared.');
+              setDate('15 Aug 2026');
+              notify('Attendance filters reset to 15 Aug 2026.');
             }}
           >
             Clear All
@@ -928,7 +1124,7 @@ export default function AttendancePage({ notify = () => {} }) {
         {/* Left Column: Attendance Records Table */}
         <div className="att-table-card">
           <div className="att-table-header">
-            <h2>Attendance Records</h2>
+            <h2>Attendance Records ({date})</h2>
             <button className="att-btn-calendar" onClick={() => setShowCalendarModal(true)}>
               <Calendar style={{ width: 14 }} /> View Calendar
             </button>
@@ -952,8 +1148,8 @@ export default function AttendancePage({ notify = () => {} }) {
                   <th>Semester</th>
                   <th>Section</th>
                   <th>Subject</th>
-                  <th>Status</th>
-                  <th>Attendance %</th>
+                  <th>Status ({date})</th>
+                  <th>Monthly Attendance %</th>
                   <th>Last Updated</th>
                   <th style={{ textAlign: 'center' }}>Action</th>
                 </tr>
@@ -962,7 +1158,7 @@ export default function AttendancePage({ notify = () => {} }) {
                 {paginatedStudents.length === 0 ? (
                   <tr>
                     <td colSpan="11" style={{ textAlign: 'center', padding: '35px', color: '#64748b' }}>
-                      No student attendance records matched your current filters.
+                      No student attendance records matched your current filters for {date}.
                     </td>
                   </tr>
                 ) : (
@@ -1017,30 +1213,39 @@ export default function AttendancePage({ notify = () => {} }) {
                                 ? 'absent'
                                 : stu.status === 'Late'
                                 ? 'late'
-                                : 'leave'
+                                : stu.status === 'Leave'
+                                ? 'leave'
+                                : 'not-marked'
                             }`}
+                            style={
+                              stu.status === 'Not Marked'
+                                ? { background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1' }
+                                : {}
+                            }
                           >
                             {stu.status}
                           </span>
                         </td>
                         <td>
                           <div className="att-pct-cell">
-                            <span className="att-pct-val">{stu.attendancePct}%</span>
+                            <span className="att-pct-val" title={`${stu.attendedDays} of ${stu.daysInMonth} days attended in ${MONTH_SHORT[activeMonth]}`}>
+                              {stu.attendancePct}%
+                            </span>
                             <span className="att-progress-track">
                               <span
                                 className={`att-progress-fill ${
                                   stu.attendancePct >= 75
                                     ? 'green'
-                                    : stu.attendancePct >= 60
+                                    : stu.attendancePct >= 50
                                     ? 'amber'
                                     : 'red'
                                 }`}
-                                style={{ width: `${stu.attendancePct}%` }}
+                                style={{ width: `${Math.min(100, stu.attendancePct)}%` }}
                               />
                             </span>
                           </div>
                         </td>
-                        <td>{stu.lastUpdated}</td>
+                        <td>{stu.markedDaysCount > 0 && stu.attendanceHistory?.[date] ? date : (stu.markedDaysCount > 0 ? stu.lastUpdated : '-')}</td>
                         <td style={{ textAlign: 'center', position: 'relative', overflow: 'visible' }}>
                           <button
                             type="button"
@@ -1165,39 +1370,52 @@ export default function AttendancePage({ notify = () => {} }) {
           <div className="att-sidebar-card">
             <div className="att-card-head">
               <h3>
-                Attendance Overview <span className="att-subtitle-badge">(This Month)</span>
+                Attendance Overview <span className="att-subtitle-badge">({date})</span>
               </h3>
             </div>
             <div className="att-overview-body">
               <div className="att-donut-chart-container">
                 <svg className="att-donut-chart-svg" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="36"
-                    className="att-donut-slice"
-                    stroke="#10b981"
-                    strokeDasharray={`${(Number(presentPct) * 226) / 100} 226`}
-                    strokeDashoffset="0"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="36"
-                    className="att-donut-slice"
-                    stroke="#ef4444"
-                    strokeDasharray={`${(Number(absentPct) * 226) / 100} 226`}
-                    strokeDashoffset={`-${(Number(presentPct) * 226) / 100}`}
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="36"
-                    className="att-donut-slice"
-                    stroke="#f59e0b"
-                    strokeDasharray={`${(Number(latePct) * 226) / 100} 226`}
-                    strokeDashoffset={`-${((Number(presentPct) + Number(absentPct)) * 226) / 100}`}
-                  />
+                  {totalMarkedOnDate === 0 ? (
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="36"
+                      stroke="#e2e8f0"
+                      strokeWidth="8"
+                      fill="none"
+                    />
+                  ) : (
+                    <>
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="36"
+                        className="att-donut-slice"
+                        stroke="#10b981"
+                        strokeDasharray={`${(Number(presentPct) * 226) / 100} 226`}
+                        strokeDashoffset="0"
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="36"
+                        className="att-donut-slice"
+                        stroke="#ef4444"
+                        strokeDasharray={`${(Number(absentPct) * 226) / 100} 226`}
+                        strokeDashoffset={`-${(Number(presentPct) * 226) / 100}`}
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="36"
+                        className="att-donut-slice"
+                        stroke="#f59e0b"
+                        strokeDasharray={`${(Number(latePct) * 226) / 100} 226`}
+                        strokeDashoffset={`-${((Number(presentPct) + Number(absentPct)) * 226) / 100}`}
+                      />
+                    </>
+                  )}
                 </svg>
               </div>
 
@@ -1228,31 +1446,23 @@ export default function AttendancePage({ notify = () => {} }) {
                 </div>
                 <div className="att-legend-row">
                   <span className="att-legend-label">
-                    <i className="att-legend-dot" style={{ background: '#3b82f6' }} /> Leave
+                    <i className="att-legend-dot" style={{ background: '#94a3b8' }} /> Not Marked
                   </span>
                   <span className="att-legend-stat">
-                    {leavePct}% <span>({leaveCount})</span>
+                    <span>({notMarkedCount})</span>
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Card 2: Attendance Trend (Interactive with Timeframe Toggle) */}
+          {/* Card 2: Attendance Trend (Dynamic strictly per marked days) */}
           <div className="att-sidebar-card">
             <div className="att-card-head">
               <h3>Attendance Trend</h3>
-              <select
-                className="att-time-select"
-                value={trendTimeframe}
-                onChange={(e) => {
-                  setTrendTimeframe(e.target.value);
-                  notify(`Attendance trend timeframe: ${e.target.value}`);
-                }}
-              >
-                <option value="This Month">This Month</option>
-                <option value="Last Month">Last Month</option>
-              </select>
+              <span className="att-subtitle-badge" style={{ fontSize: 11, color: '#6366f1', fontWeight: 600 }}>
+                {MONTH_NAMES[activeMonth]} {activeYear}
+              </span>
             </div>
             <div className="att-trend-body">
               <svg viewBox="0 0 300 130" className="att-trend-chart-svg">
@@ -1268,26 +1478,42 @@ export default function AttendancePage({ notify = () => {} }) {
                   <text x="5" y="83">50%</text>
                   <text x="5" y="113">0%</text>
                   {trendData.labels.map((lbl, idx) => (
-                    <text key={lbl} x={25 + idx * 42} y="125">
+                    <text key={lbl} x={25 + idx * (250 / (trendData.labels.length - 1 || 1))} y="125">
                       {lbl}
                     </text>
                   ))}
                 </g>
                 <polyline
                   className="att-trend-line"
-                  points={trendData.points.map((p) => p.join(',')).join(' ')}
+                  points={trendData.points.map((p) => `${p[0]},${p[1]}`).join(' ')}
                 />
-                {trendData.points.map(([cx, cy], i) => (
-                  <circle key={i} cx={cx} cy={cy} r="3.5" className="att-trend-dot" />
+                {trendData.points.map(([cx, cy, pct, dNum], i) => (
+                  <circle
+                    key={i}
+                    cx={cx}
+                    cy={cy}
+                    r={pct > 0 ? "4.5" : "3"}
+                    className="att-trend-dot"
+                    style={{ fill: pct > 0 ? '#6366f1' : '#cbd5e1', cursor: 'pointer' }}
+                    onClick={() => {
+                      const dStr = formatDateStr(dNum, activeMonth, activeYear);
+                      setDate(dStr);
+                      notify(`Selected date: ${dStr} (${pct}% attendance marked)`);
+                    }}
+                  />
                 ))}
               </svg>
               <div className="att-trend-footer">
-                ↑ 5.2% improvement from last month ({overallAvgPct}% current average)
+                {trendData.totalMarksInMonth > 0 ? (
+                  <span>Dynamic Trend • {trendData.totalMarksInMonth} record(s) in {MONTH_SHORT[activeMonth]} {activeYear}</span>
+                ) : (
+                  <span style={{ color: '#94a3b8' }}>Dynamic Trend • 0 marked records in {MONTH_SHORT[activeMonth]} {activeYear}</span>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Card 3: Low Attendance Students (Exact screenshot styling) */}
+          {/* Card 3: Low Attendance Students */}
           <div className="att-sidebar-card">
             <div className="att-card-head">
               <h3>Low Attendance Students</h3>
@@ -1296,37 +1522,52 @@ export default function AttendancePage({ notify = () => {} }) {
               </button>
             </div>
             <div className="att-low-students-list">
-              {lowAttendanceStudents.slice(0, 3).map((s) => (
-                <div key={s.rollNo || s.id} className="att-low-student-item">
-                  <div className="att-low-student-left">
-                    {s.avatar ? (
-                      <img src={s.avatar} alt={s.name} className="att-stu-avatar" />
-                    ) : (
-                      <div className="att-stu-avatar-fallback">{s.initials}</div>
-                    )}
-                    <div className="att-low-student-info">
-                      <h4>{s.name}</h4>
-                      <span>{s.rollNo || s.id} • {s.section}</span>
-                    </div>
-                  </div>
-                  <span
-                    className={`att-low-pct-pill ${
-                      s.attendancePct < 60 ? 'red' : 'amber'
-                    }`}
-                  >
-                    {s.attendancePct}%
-                  </span>
+              {lowAttendanceStudents.length === 0 ? (
+                <div style={{ padding: '18px 8px', color: '#64748b', fontSize: 12, textAlign: 'center' }}>
+                  No low attendance students (&lt;75%) currently.
                 </div>
-              ))}
+              ) : (
+                lowAttendanceStudents.slice(0, 3).map((s) => (
+                  <div key={s.rollNo || s.id} className="att-low-student-item">
+                    <div className="att-low-student-left">
+                      {s.avatar ? (
+                        <img src={s.avatar} alt={s.name} className="att-stu-avatar" />
+                      ) : (
+                        <div className="att-stu-avatar-fallback">{s.initials}</div>
+                      )}
+                      <div className="att-low-student-info">
+                        <h4>{s.name}</h4>
+                        <span>{s.rollNo || s.id} • {s.section} ({s.attendedDays}/{s.daysInMonth} days)</span>
+                      </div>
+                    </div>
+                    <span
+                      className={`att-low-pct-pill ${
+                        s.attendancePct < 50 ? 'red' : 'amber'
+                      }`}
+                    >
+                      {s.attendancePct}%
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
-            <button className="att-action-link" onClick={() => setShowTakeActionModal(true)}>
+            <button
+              className="att-action-link"
+              onClick={() => {
+                if (lowAttendanceStudents.length === 0) {
+                  notify('No low attendance students need intervention right now.');
+                } else {
+                  setShowTakeActionModal(true);
+                }
+              }}
+            >
               Take action to improve attendance <ArrowRight style={{ width: 13 }} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* 5. Bottom Section: Department Wise Attendance (Strictly Real Data Driven) */}
+      {/* 5. Bottom Section: Department Wise Attendance */}
       <div className="att-dept-section">
         <div className="att-dept-head">
           <h3>Department Wise Attendance</h3>
@@ -1374,7 +1615,211 @@ export default function AttendancePage({ notify = () => {} }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 1. MARK ATTENDANCE MODAL (GORGEOUS STATE-OF-THE-ART REDESIGN) */}
+      {/* 1. REALISTIC 2026 CALENDAR MODAL WITH MONTH SHIFTING (< Month >) */}
+      {/* ========================================================================= */}
+      {showCalendarModal && (
+        <div className="att-modal-overlay" onClick={() => setShowCalendarModal(false)}>
+          <div
+            className="att-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '640px', borderRadius: '16px', overflow: 'hidden' }}
+          >
+            <div
+              className="att-modal-head"
+              style={{
+                background: 'linear-gradient(135deg, #eef2ff, #ede9fe)',
+                padding: '18px 24px',
+                borderBottom: '1px solid #c7d2fe'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  className="att-icon-badge"
+                  style={{ width: 40, height: 40, background: '#6355ed', color: '#fff' }}
+                >
+                  <CalendarDays style={{ width: 20 }} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 17, color: '#312e81', fontWeight: 700 }}>
+                    Academic Attendance Calendar (2026)
+                  </h3>
+                  <small style={{ color: '#6366f1', fontSize: 12 }}>
+                    Navigate months and select any date to view real-time student records
+                  </small>
+                </div>
+              </div>
+              <button
+                className="att-close-btn"
+                onClick={() => setShowCalendarModal(false)}
+                style={{
+                  border: '1px solid #dce4f5',
+                  background: '#fff',
+                  borderRadius: '50%',
+                  width: 32,
+                  height: 32,
+                  display: 'grid',
+                  placeItems: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X style={{ width: 16 }} />
+              </button>
+            </div>
+
+            <div className="att-modal-body" style={{ padding: '20px 24px' }}>
+              {/* Month Shift Header with Left and Right Arrows */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '16px',
+                  background: '#f8faff',
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid #e0e7ff'
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handlePrevMonth}
+                  style={{
+                    border: '1px solid #cbd5e1',
+                    background: '#fff',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <ChevronLeft style={{ width: 14 }} /> Previous
+                </button>
+
+                <div style={{ textAlign: 'center' }}>
+                  <span style={{ fontWeight: 800, fontSize: 16, color: '#1e1b4b' }}>
+                    {MONTH_NAMES[calMonth]} {calYear}
+                  </span>
+                  <span style={{ display: 'block', fontSize: 11, color: '#6366f1', fontWeight: 500 }}>
+                    Active Selected: <b>{date}</b>
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleNextMonth}
+                  style={{
+                    border: '1px solid #cbd5e1',
+                    background: '#fff',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  Next <ChevronRight style={{ width: 14 }} />
+                </button>
+              </div>
+
+              {/* Day Headers (Sun, Mon, Tue, Wed, Thu, Fri, Sat) */}
+              <div className="att-cal-grid" style={{ marginBottom: '8px' }}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                  <div key={d} className="att-cal-day-label">
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* Real Calendar Grid with proper Month Offsets */}
+              <div className="att-cal-grid">
+                {/* Empty offset cells before day 1 */}
+                {Array.from({ length: startDayOfCalMonth }).map((_, i) => (
+                  <div key={`empty-${i}`} style={{ height: '50px', background: '#fafafa', borderRadius: '8px', opacity: 0.3 }} />
+                ))}
+
+                {/* Days of the selected month */}
+                {Array.from({ length: daysInCalMonth }, (_, i) => {
+                  const dayNum = i + 1;
+                  const dStr = formatDateStr(dayNum, calMonth, calYear);
+                  const isSelected = date === dStr;
+                  const dayOfWeek = new Date(calYear, calMonth, dayNum).getDay();
+                  const isSunday = dayOfWeek === 0;
+
+                  return (
+                    <div
+                      key={dayNum}
+                      className={`att-cal-cell ${isSunday ? 'holiday' : ''}`}
+                      style={{
+                        height: '50px',
+                        border: isSelected ? '2px solid #5247e6' : '1px solid #eef2f7',
+                        background: isSelected ? '#eff0fe' : isSunday ? '#f8fafc' : '#fff',
+                        boxShadow: isSelected ? '0 0 0 3px rgba(82, 71, 230, 0.25)' : 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        padding: '4px 6px',
+                        borderRadius: '8px',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onClick={() => {
+                        setDate(dStr);
+                        setShowCalendarModal(false);
+                        notify(`Selected date: ${dStr}`);
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                        <b style={{ fontSize: 12, color: isSelected ? '#4338ca' : isSunday ? '#94a3b8' : '#1e293b' }}>
+                          {dayNum}
+                        </b>
+                        {isSelected && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#5247e6' }} />}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 600,
+                          color: isSunday ? '#94a3b8' : (isSelected ? '#6355ed' : '#64748b'),
+                          alignSelf: 'flex-start'
+                        }}
+                      >
+                        {isSunday ? 'Off' : (isSelected ? 'Active' : '')}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div
+              className="att-modal-foot"
+              style={{
+                padding: '14px 24px',
+                background: '#f8fafc',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center'
+              }}
+            >
+              <button
+                type="button"
+                className="att-btn-primary"
+                onClick={() => setShowCalendarModal(false)}
+              >
+                Close Calendar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 2. MARK ATTENDANCE MODAL (CLEAN MANUAL RECORDING) */}
       {/* ========================================================================= */}
       {showMarkModal && (
         <div className="att-modal-overlay" onClick={() => setShowMarkModal(false)}>
@@ -1415,7 +1860,7 @@ export default function AttendancePage({ notify = () => {} }) {
                     Mark Daily Attendance
                   </h3>
                   <small style={{ color: '#6366f1', fontSize: 12 }}>
-                    Record status for individual student with instant DB & stats update
+                    Record status for specific date with manual control
                   </small>
                 </div>
               </div>
@@ -1442,7 +1887,7 @@ export default function AttendancePage({ notify = () => {} }) {
                 className="att-modal-body"
                 style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}
               >
-                {/* Student Selector with Details */}
+                {/* Student Selector */}
                 <div className="att-input-group">
                   <label style={{ display: 'block', fontWeight: 600, fontSize: 12, marginBottom: 6, color: '#1e293b' }}>
                     Select Student *
@@ -1460,9 +1905,9 @@ export default function AttendancePage({ notify = () => {} }) {
                       background: '#fff'
                     }}
                   >
-                    {studentsList.map((s) => (
+                    {processedStudents.map((s) => (
                       <option key={s.rollNo || s.id} value={s.rollNo || s.id}>
-                        {s.name} ({s.rollNo || s.id}) — {s.dept} ({s.section}) • Current: {s.attendancePct}%
+                        {s.name} ({s.rollNo || s.id}) — {s.dept} ({s.section}) • Monthly Attendance: {s.attendancePct}% ({s.attendedDays}/{s.daysInMonth} days)
                       </option>
                     ))}
                   </select>
@@ -1475,10 +1920,10 @@ export default function AttendancePage({ notify = () => {} }) {
                   </label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
                     {[
-                      { id: 'Present', label: 'Present', icon: CheckCircle2, color: '#10b981', bg: '#f0fdf4', border: '#86efac' },
-                      { id: 'Absent', label: 'Absent', icon: XCircle, color: '#ef4444', bg: '#fef2f2', border: '#fca5a5' },
-                      { id: 'Late', label: 'Late', icon: Clock3, color: '#f59e0b', bg: '#fffbeb', border: '#fcd34d' },
-                      { id: 'Leave', label: 'Leave', icon: Calendar, color: '#3b82f6', bg: '#eff6ff', border: '#93c5fd' }
+                      { id: 'Present', label: 'Present', icon: CheckCircle2, color: '#10b981', bg: '#f0fdf4' },
+                      { id: 'Absent', label: 'Absent', icon: XCircle, color: '#ef4444', bg: '#fef2f2' },
+                      { id: 'Late', label: 'Late', icon: Clock3, color: '#f59e0b', bg: '#fffbeb' },
+                      { id: 'Leave', label: 'Leave', icon: Calendar, color: '#3b82f6', bg: '#eff6ff' }
                     ].map((st) => {
                       const Icon = st.icon;
                       const isSelected = markForm.status === st.id;
@@ -1586,14 +2031,6 @@ export default function AttendancePage({ notify = () => {} }) {
                   type="button"
                   className="att-btn-secondary"
                   onClick={() => setShowMarkModal(false)}
-                  style={{
-                    border: '1px solid #cbd5e1',
-                    background: '#fff',
-                    borderRadius: '8px',
-                    padding: '10px 18px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
                 >
                   Cancel
                 </button>
@@ -1620,7 +2057,7 @@ export default function AttendancePage({ notify = () => {} }) {
       )}
 
       {/* ========================================================================= */}
-      {/* 2. OVERALL ATTENDANCE ANALYTICS MODAL (NEW SOLUTION) */}
+      {/* 3. OVERALL ATTENDANCE ANALYTICS MODAL */}
       {/* ========================================================================= */}
       {showOverallModal && (
         <div className="att-modal-overlay" onClick={() => setShowOverallModal(false)}>
@@ -1649,7 +2086,7 @@ export default function AttendancePage({ notify = () => {} }) {
                     Overall Institutional Attendance Analytics
                   </h3>
                   <small style={{ color: '#4338ca', fontSize: 12 }}>
-                    Comprehensive breakdown across all departments, sections, and semesters
+                    Comprehensive breakdown across all departments, sections, and semesters ({date})
                   </small>
                 </div>
               </div>
@@ -1683,9 +2120,9 @@ export default function AttendancePage({ notify = () => {} }) {
                   <span style={{ color: '#10b981', fontSize: 11, fontWeight: 600 }}>100% active students</span>
                 </div>
                 <div style={{ padding: '14px', background: '#f0fdf4', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
-                  <small style={{ color: '#15803d', fontWeight: 600 }}>Avg Attendance</small>
+                  <small style={{ color: '#15803d', fontWeight: 600 }}>Average Attendance</small>
                   <h2 style={{ margin: '4px 0', fontSize: 22, color: '#16a34a' }}>{overallAvgPct}%</h2>
-                  <span style={{ color: '#16a34a', fontSize: 11, fontWeight: 600 }}>Across all 5 branches</span>
+                  <span style={{ color: '#16a34a', fontSize: 11, fontWeight: 600 }}>Month of {MONTH_NAMES[activeMonth]} ({activeDaysInMonth} days)</span>
                 </div>
                 <div style={{ padding: '14px', background: '#fef2f2', borderRadius: '10px', border: '1px solid #fecdd3' }}>
                   <small style={{ color: '#b91c1c', fontWeight: 600 }}>Below 75% Limit</small>
@@ -1697,7 +2134,7 @@ export default function AttendancePage({ notify = () => {} }) {
               {/* Department Breakdown Matrix */}
               <div>
                 <b style={{ fontSize: 13, color: '#1e293b', display: 'block', marginBottom: '8px' }}>
-                  Department-Wise Attendance Performance
+                  Department-Wise Attendance Performance ({MONTH_NAMES[activeMonth]} {activeYear})
                 </b>
                 <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
                   <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
@@ -1731,7 +2168,7 @@ export default function AttendancePage({ notify = () => {} }) {
                                   color: isGood ? '#15803d' : '#b91c1c'
                                 }}
                               >
-                                {isGood ? 'Good Standing' : 'Critical Attention'}
+                                {isGood ? 'Good Standing' : (pctNum > 0 ? 'Critical Attention' : 'No Data')}
                               </span>
                             </td>
                           </tr>
@@ -1757,15 +2194,6 @@ export default function AttendancePage({ notify = () => {} }) {
                 type="button"
                 className="att-btn-primary"
                 onClick={() => setShowOverallModal(false)}
-                style={{
-                  border: 0,
-                  background: '#4f46e5',
-                  color: '#fff',
-                  borderRadius: '8px',
-                  padding: '9px 18px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
               >
                 Close Analytics
               </button>
@@ -1775,7 +2203,7 @@ export default function AttendancePage({ notify = () => {} }) {
       )}
 
       {/* ========================================================================= */}
-      {/* 3. VIEW ALL LOW ATTENDANCE STUDENTS MODAL (POLISHED WITH FILTERS) */}
+      {/* 4. VIEW ALL LOW ATTENDANCE STUDENTS MODAL */}
       {/* ========================================================================= */}
       {showLowAttendanceModal && (
         <div className="att-modal-overlay" onClick={() => setShowLowAttendanceModal(false)}>
@@ -1801,10 +2229,10 @@ export default function AttendancePage({ notify = () => {} }) {
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: 17, color: '#991b1b', fontWeight: 700 }}>
-                    Low Attendance Students Intervention Center (&lt;75%)
+                    Low Attendance Students (&lt;75%)
                   </h3>
                   <small style={{ color: '#b91c1c', fontSize: 12 }}>
-                    {lowAttendanceStudents.length} student(s) currently below mandatory 75% threshold
+                    {lowAttendanceStudents.length} student(s) currently below mandatory 75% threshold in {MONTH_NAMES[activeMonth]}
                   </small>
                 </div>
               </div>
@@ -1890,7 +2318,7 @@ export default function AttendancePage({ notify = () => {} }) {
                       <th style={{ padding: '9px 12px', textAlign: 'left' }}>Name</th>
                       <th style={{ padding: '9px 12px', textAlign: 'left' }}>Branch</th>
                       <th style={{ padding: '9px 12px', textAlign: 'left' }}>Section</th>
-                      <th style={{ padding: '9px 12px', textAlign: 'left' }}>Attendance %</th>
+                      <th style={{ padding: '9px 12px', textAlign: 'left' }}>Monthly Attendance %</th>
                       <th style={{ padding: '9px 12px', textAlign: 'center' }}>Action</th>
                     </tr>
                   </thead>
@@ -1898,7 +2326,7 @@ export default function AttendancePage({ notify = () => {} }) {
                     {filteredLowAttendanceInModal.length === 0 ? (
                       <tr>
                         <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
-                          No low attendance students match the selected department/section filter.
+                          No low attendance students match the selected department/section filter for {date}.
                         </td>
                       </tr>
                     ) : (
@@ -1913,14 +2341,14 @@ export default function AttendancePage({ notify = () => {} }) {
                           <td style={{ padding: '9px 12px' }}>
                             <span
                               style={{
-                                background: s.attendancePct < 60 ? '#fee2e2' : '#fef3c7',
-                                color: s.attendancePct < 60 ? '#b91c1c' : '#b45309',
+                                background: s.attendancePct < 50 ? '#fee2e2' : '#fef3c7',
+                                color: s.attendancePct < 50 ? '#b91c1c' : '#b45309',
                                 fontWeight: 700,
                                 padding: '3px 8px',
                                 borderRadius: '4px'
                               }}
                             >
-                              {s.attendancePct}%
+                              {s.attendancePct}% ({s.attendedDays}/{s.daysInMonth} days)
                             </span>
                           </td>
                           <td style={{ padding: '9px 12px', textAlign: 'center' }}>
@@ -1929,7 +2357,7 @@ export default function AttendancePage({ notify = () => {} }) {
                               className="att-btn-secondary"
                               style={{ padding: '4px 8px', fontSize: '11px', color: '#2563eb' }}
                               onClick={() => {
-                                notify(`Automated parent notice dispatched for ${s.name} (${s.rollNo})`);
+                                notify(`Automated parent notice dispatched for ${s.name} (${s.rollNo}) on ${date}`);
                               }}
                             >
                               Send Notice
@@ -1964,6 +2392,7 @@ export default function AttendancePage({ notify = () => {} }) {
               <button
                 type="button"
                 className="att-btn-primary"
+                disabled={lowAttendanceStudents.length === 0}
                 onClick={() => {
                   setShowLowAttendanceModal(false);
                   setShowTakeActionModal(true);
@@ -1975,7 +2404,8 @@ export default function AttendancePage({ notify = () => {} }) {
                   padding: '9px 16px',
                   borderRadius: '8px',
                   fontWeight: 600,
-                  cursor: 'pointer'
+                  cursor: lowAttendanceStudents.length === 0 ? 'not-allowed' : 'pointer',
+                  opacity: lowAttendanceStudents.length === 0 ? 0.6 : 1
                 }}
               >
                 Take Mass Action for All ({lowAttendanceStudents.length})
@@ -1986,7 +2416,7 @@ export default function AttendancePage({ notify = () => {} }) {
       )}
 
       {/* ========================================================================= */}
-      {/* 4. TAKE ACTION TO IMPROVE ATTENDANCE MODAL */}
+      {/* 5. TAKE ACTION TO IMPROVE ATTENDANCE MODAL */}
       {/* ========================================================================= */}
       {showTakeActionModal && (
         <div className="att-modal-overlay" onClick={() => setShowTakeActionModal(false)}>
@@ -2101,7 +2531,7 @@ export default function AttendancePage({ notify = () => {} }) {
       )}
 
       {/* ========================================================================= */}
-      {/* 5. UPLOAD ATTENDANCE MODAL */}
+      {/* 6. UPLOAD ATTENDANCE MODAL */}
       {/* ========================================================================= */}
       {showUploadModal && (
         <div className="att-modal-overlay" onClick={() => setShowUploadModal(false)}>
@@ -2113,7 +2543,7 @@ export default function AttendancePage({ notify = () => {} }) {
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: 16 }}>Upload Attendance Spreadsheet</h3>
-                  <small style={{ color: '#64748b' }}>Import attendance from Excel or CSV file</small>
+                  <small style={{ color: '#64748b' }}>Import attendance records</small>
                 </div>
               </div>
               <button className="att-close-btn" onClick={() => setShowUploadModal(false)}>
@@ -2146,7 +2576,7 @@ export default function AttendancePage({ notify = () => {} }) {
                   {uploadFile ? uploadFile.name : 'Click to select or drop Attendance Excel (.xlsx/.csv)'}
                 </b>
                 <small style={{ color: '#64748b', fontSize: 12 }}>
-                  Headers: Enrollment No., Student Name, Section, Attendance %, Status
+                  Headers: Enrollment No., Student Name, Date, Status
                 </small>
               </div>
 
@@ -2167,7 +2597,7 @@ export default function AttendancePage({ notify = () => {} }) {
                   fontSize: 12
                 }}
               >
-                <span>💡 Download attendance roster template</span>
+                <span>💡 Download attendance roster template for {date}</span>
                 <button
                   type="button"
                   onClick={handleDownloadAttendanceTemplate}
@@ -2193,8 +2623,7 @@ export default function AttendancePage({ notify = () => {} }) {
                       <tr style={{ background: '#f8fafc', color: '#475569' }}>
                         <th style={{ padding: '6px 8px', textAlign: 'left' }}>Enrollment No.</th>
                         <th style={{ padding: '6px 8px', textAlign: 'left' }}>Name</th>
-                        <th style={{ padding: '6px 8px', textAlign: 'left' }}>Section</th>
-                        <th style={{ padding: '6px 8px', textAlign: 'left' }}>Attendance</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left' }}>Date</th>
                         <th style={{ padding: '6px 8px', textAlign: 'left' }}>Status</th>
                       </tr>
                     </thead>
@@ -2205,8 +2634,7 @@ export default function AttendancePage({ notify = () => {} }) {
                             {row['Enrollment No.'] || row['Roll No.'] || row.rollNo || '-'}
                           </td>
                           <td style={{ padding: '6px 8px' }}>{row['Student Name'] || row.name || '-'}</td>
-                          <td style={{ padding: '6px 8px' }}>{row['Section'] || row.section || '-'}</td>
-                          <td style={{ padding: '6px 8px' }}>{row['Attendance %'] || row.attendance || '-'}</td>
+                          <td style={{ padding: '6px 8px' }}>{row['Date'] || row.date || date}</td>
                           <td style={{ padding: '6px 8px' }}>{row['Status'] || row.status || '-'}</td>
                         </tr>
                       ))}

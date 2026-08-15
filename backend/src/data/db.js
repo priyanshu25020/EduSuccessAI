@@ -13,12 +13,13 @@ const students = [
     cgpa: 5.8,
     backlogs: 2,
     status: 'Active',
+    attendanceHistory: {},
     attendance: {
-      percentage: 87,
-      status: 'Present',
+      percentage: 0,
+      status: 'Not Marked',
       subject: 'Data Structures',
       section: 'Section A',
-      lastUpdated: '13 May 2025'
+      lastUpdated: '-'
     },
     academic: {
       cgpa: 5.8,
@@ -63,12 +64,13 @@ const students = [
     cgpa: 6.2,
     backlogs: 1,
     status: 'Active',
+    attendanceHistory: {},
     attendance: {
-      percentage: 92,
-      status: 'Present',
+      percentage: 0,
+      status: 'Not Marked',
       subject: 'Database Mgmt.',
       section: 'Section B',
-      lastUpdated: '13 May 2025'
+      lastUpdated: '-'
     },
     academic: {
       cgpa: 6.2,
@@ -113,12 +115,13 @@ const students = [
     cgpa: 3.65,
     backlogs: 3,
     status: 'Active',
+    attendanceHistory: {},
     attendance: {
-      percentage: 45,
-      status: 'Absent',
+      percentage: 0,
+      status: 'Not Marked',
       subject: 'Digital Logic',
       section: 'Section A',
-      lastUpdated: '13 May 2025'
+      lastUpdated: '-'
     },
     academic: {
       cgpa: 3.65,
@@ -163,12 +166,13 @@ const students = [
     cgpa: 3.89,
     backlogs: 2,
     status: 'Active',
+    attendanceHistory: {},
     attendance: {
-      percentage: 68,
-      status: 'Absent',
+      percentage: 0,
+      status: 'Not Marked',
       subject: 'Thermodynamics',
       section: 'Section B',
-      lastUpdated: '13 May 2025'
+      lastUpdated: '-'
     },
     academic: {
       cgpa: 3.89,
@@ -213,12 +217,13 @@ const students = [
     cgpa: 4.12,
     backlogs: 3,
     status: 'Active',
+    attendanceHistory: {},
     attendance: {
-      percentage: 83,
-      status: 'Present',
+      percentage: 0,
+      status: 'Not Marked',
       subject: 'Operating Systems',
       section: 'Section A',
-      lastUpdated: '13 May 2025'
+      lastUpdated: '-'
     },
     academic: {
       cgpa: 4.12,
@@ -263,12 +268,13 @@ const students = [
     cgpa: 8.45,
     backlogs: 0,
     status: 'Active',
+    attendanceHistory: {},
     attendance: {
-      percentage: 90,
-      status: 'Present',
+      percentage: 0,
+      status: 'Not Marked',
       subject: 'Web Development',
       section: 'Section B',
-      lastUpdated: '13 May 2025'
+      lastUpdated: '-'
     },
     academic: {
       cgpa: 8.45,
@@ -313,12 +319,13 @@ const students = [
     cgpa: 3.78,
     backlogs: 2,
     status: 'Active',
+    attendanceHistory: {},
     attendance: {
-      percentage: 72,
-      status: 'Absent',
+      percentage: 0,
+      status: 'Not Marked',
       subject: 'Microprocessors',
       section: 'Section A',
-      lastUpdated: '13 May 2025'
+      lastUpdated: '-'
     },
     academic: {
       cgpa: 3.78,
@@ -363,12 +370,13 @@ const students = [
     cgpa: 3.42,
     backlogs: 4,
     status: 'Active',
+    attendanceHistory: {},
     attendance: {
-      percentage: 30,
-      status: 'Absent',
+      percentage: 0,
+      status: 'Not Marked',
       subject: 'Machine Design',
       section: 'Section B',
-      lastUpdated: '13 May 2025'
+      lastUpdated: '-'
     },
     academic: {
       cgpa: 3.42,
