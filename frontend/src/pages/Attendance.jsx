@@ -13,32 +13,20 @@ import {
   MoreVertical,
   CheckCircle2,
   XCircle,
-  AlertCircle,
   Clock3,
   Calendar,
   FileSpreadsheet,
   FileText,
-  Search,
   BookOpen,
   Laptop,
   Cpu,
   Wrench,
   Building2,
   X,
-  Eye,
   Send,
-  UserCheck,
-  UserX,
-  FileCheck,
   ArrowRight,
-  TrendingUp,
-  GraduationCap,
-  MessageSquare,
-  Mail,
   ShieldAlert,
   BarChart3,
-  PieChart,
-  Layers,
   Sparkles
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -72,7 +60,7 @@ const parseDateStr = (str = '15 Aug 2026') => {
   return { day, month: mIdx, monthStr, year, daysInMonth, monthKey };
 };
 
-// Calculate student's monthly attendance percentage strictly against the total days in the active month
+// Calculate student's monthly attendance percentage strictly against total days in that month
 export const calculateStudentMonthlyStats = (student, targetDate = '15 Aug 2026') => {
   const { month, monthStr, year, daysInMonth, monthKey } = parseDateStr(targetDate);
   const historyEntries = Object.entries(student.attendanceHistory || {}).filter(
@@ -96,7 +84,6 @@ export const calculateStudentMonthlyStats = (student, targetDate = '15 Aug 2026'
     }
   });
 
-  // Calculate percentage out of total days in that month (e.g. 31 in Aug)
   const pct = daysInMonth > 0 ? parseFloat(((attended / daysInMonth) * 100).toFixed(1)) : 0;
 
   return {
@@ -113,144 +100,16 @@ export const calculateStudentMonthlyStats = (student, targetDate = '15 Aug 2026'
   };
 };
 
-// 8 Verified Students (Clean slate: ZERO initial fake/auto markings, all Not Marked, 0% attendance)
+// 8 Verified Students (Clean slate: ZERO initial fake data)
 const INITIAL_STUDENTS = [
-  {
-    id: 'STU1001',
-    rollNo: 'CE2021001',
-    name: 'Rahul Patel',
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80',
-    initials: 'RP',
-    dept: 'Computer Engg.',
-    semester: 4,
-    subject: 'Data Structures',
-    section: 'Section A',
-    status: 'Not Marked',
-    attendancePct: 0,
-    attendedDays: 0,
-    markedDaysCount: 0,
-    attendanceHistory: {},
-    lastUpdated: '-'
-  },
-  {
-    id: 'STU1002',
-    rollNo: 'IT2021002',
-    name: 'Sneha Singh',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-    initials: 'SS',
-    dept: 'Information Tech.',
-    semester: 4,
-    subject: 'Database Mgmt.',
-    section: 'Section B',
-    status: 'Not Marked',
-    attendancePct: 0,
-    attendedDays: 0,
-    markedDaysCount: 0,
-    attendanceHistory: {},
-    lastUpdated: '-'
-  },
-  {
-    id: 'STU1003',
-    rollNo: 'EE2021003',
-    name: 'Aarav Mehta',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
-    initials: 'AM',
-    dept: 'Electronics Engg.',
-    semester: 4,
-    subject: 'Digital Logic',
-    section: 'Section A',
-    status: 'Not Marked',
-    attendancePct: 0,
-    attendedDays: 0,
-    markedDaysCount: 0,
-    attendanceHistory: {},
-    lastUpdated: '-'
-  },
-  {
-    id: 'STU1004',
-    rollNo: 'ME2021004',
-    name: 'Pooja Sharma',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
-    initials: 'PS',
-    dept: 'Mechanical Engg.',
-    semester: 4,
-    subject: 'Thermodynamics',
-    section: 'Section B',
-    status: 'Not Marked',
-    attendancePct: 0,
-    attendedDays: 0,
-    markedDaysCount: 0,
-    attendanceHistory: {},
-    lastUpdated: '-'
-  },
-  {
-    id: 'STU1005',
-    rollNo: 'CE2021005',
-    name: 'Karan Verma',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80',
-    initials: 'KV',
-    dept: 'Computer Engg.',
-    semester: 6,
-    subject: 'Operating Systems',
-    section: 'Section A',
-    status: 'Not Marked',
-    attendancePct: 0,
-    attendedDays: 0,
-    markedDaysCount: 0,
-    attendanceHistory: {},
-    lastUpdated: '-'
-  },
-  {
-    id: 'STU1006',
-    rollNo: 'IT2021006',
-    name: 'Anjali Desai',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80',
-    initials: 'AD',
-    dept: 'Information Tech.',
-    semester: 6,
-    subject: 'Web Development',
-    section: 'Section B',
-    status: 'Not Marked',
-    attendancePct: 0,
-    attendedDays: 0,
-    markedDaysCount: 0,
-    attendanceHistory: {},
-    lastUpdated: '-'
-  },
-  {
-    id: 'STU1007',
-    rollNo: 'EE2021007',
-    name: 'Vivek Yadav',
-    avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80',
-    initials: 'VY',
-    dept: 'Electronics Engg.',
-    semester: 6,
-    subject: 'Microprocessors',
-    section: 'Section A',
-    status: 'Not Marked',
-    attendancePct: 0,
-    attendedDays: 0,
-    markedDaysCount: 0,
-    attendanceHistory: {},
-    lastUpdated: '-'
-  },
-  {
-    id: 'STU1008',
-    rollNo: 'ME2021008',
-    name: 'Neha Patel',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80',
-    initials: 'NP',
-    dept: 'Mechanical Engg.',
-    semester: 6,
-    subject: 'Machine Design',
-    section: 'Section B',
-    status: 'Not Marked',
-    attendancePct: 0,
-    attendedDays: 0,
-    markedDaysCount: 0,
-    attendanceHistory: {},
-    lastUpdated: '-'
-  }
+  { id: 'STU1001', rollNo: 'CE2021001', name: 'Rahul Patel', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80', initials: 'RP', dept: 'Computer Engg.', semester: 4, subject: 'Data Structures', section: 'Section A', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' },
+  { id: 'STU1002', rollNo: 'IT2021002', name: 'Sneha Singh', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80', initials: 'SS', dept: 'Information Tech.', semester: 4, subject: 'Database Mgmt.', section: 'Section B', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' },
+  { id: 'STU1003', rollNo: 'EE2021003', name: 'Aarav Mehta', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80', initials: 'AM', dept: 'Electronics Engg.', semester: 4, subject: 'Digital Logic', section: 'Section A', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' },
+  { id: 'STU1004', rollNo: 'ME2021004', name: 'Pooja Sharma', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80', initials: 'PS', dept: 'Mechanical Engg.', semester: 4, subject: 'Thermodynamics', section: 'Section B', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' },
+  { id: 'STU1005', rollNo: 'CE2021005', name: 'Karan Verma', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80', initials: 'KV', dept: 'Computer Engg.', semester: 6, subject: 'Operating Systems', section: 'Section A', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' },
+  { id: 'STU1006', rollNo: 'IT2021006', name: 'Anjali Desai', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80', initials: 'AD', dept: 'Information Tech.', semester: 6, subject: 'Web Development', section: 'Section B', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' },
+  { id: 'STU1007', rollNo: 'EE2021007', name: 'Vivek Yadav', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80', initials: 'VY', dept: 'Electronics Engg.', semester: 6, subject: 'Microprocessors', section: 'Section A', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' },
+  { id: 'STU1008', rollNo: 'ME2021008', name: 'Neha Patel', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80', initials: 'NP', dept: 'Mechanical Engg.', semester: 6, subject: 'Machine Design', section: 'Section B', status: 'Not Marked', attendancePct: 0, attendedDays: 0, markedDaysCount: 0, attendanceHistory: {}, lastUpdated: '-' }
 ];
 
 export default function AttendancePage({ notify = () => {}, globalDate, setGlobalDate, globalSearchQuery = '' }) {
@@ -279,7 +138,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
   const [selectedRowIds, setSelectedRowIds] = useState([]);
   const [activeActionMenuId, setActiveActionMenuId] = useState(null);
 
-  // Pagination (Strict 10 items per page)
+  // Pagination (10 items per page)
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -311,7 +170,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
   const fileInputRef = useRef(null);
 
   // Take Action state
-  const [actionType, setActionType] = useState('sms');
   const [actionCustomNote, setActionCustomNote] = useState('');
 
   // Synchronize calMonth and calYear whenever date changes
@@ -464,7 +322,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
     });
   }, [processedStudents, department, semester, subject, section, globalSearchQuery]);
 
-  // Paginated Rows (Strict 10 per page)
+  // Paginated Rows
   const totalCount = filteredStudents.length;
   const totalPages = Math.ceil(totalCount / rowsPerPage) || 1;
   const paginatedStudents = useMemo(() => {
@@ -493,17 +351,17 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
   const latePct = totalEnrolled > 0 ? ((lateCount / totalEnrolled) * 100).toFixed(1) : '0.0';
   const leavePct = totalEnrolled > 0 ? ((leaveCount / totalEnrolled) * 100).toFixed(1) : '0.0';
 
-  // Institutional Month-Wise Average (sum of students' monthly percentage / total enrolled)
+  // Institutional Month-Wise Average
   const studentsWithMarks = processedStudents.filter((s) => s.markedDaysCount > 0);
   const sumPct = processedStudents.reduce((acc, s) => acc + s.attendancePct, 0);
   const overallAvgPct = totalEnrolled > 0 ? (sumPct / totalEnrolled).toFixed(1) : '0.0';
 
-  // Low attendance students: Students where attendance has been marked AND monthly percentage < 75%
+  // Low attendance students (< 75%)
   const lowAttendanceStudents = useMemo(() => {
     return processedStudents.filter((s) => s.markedDaysCount > 0 && s.attendancePct < 75);
   }, [processedStudents]);
 
-  // Dynamic Department-wise Stats strictly calculated from month-wise percentages
+  // Dynamic Department-wise Stats
   const departmentCards = useMemo(() => {
     const depts = [
       { name: 'Computer Engg.', icon: Laptop, color: 'blue' },
@@ -531,7 +389,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
     });
   }, [processedStudents]);
 
-  // Dynamic Trend Points for current month: 100% dynamic without fake flat lines
+  // Dynamic Trend Points
   const trendData = useMemo(() => {
     const daysInM = new Date(activeYear, activeMonth + 1, 0).getDate();
     const intervals = [1, Math.min(6, daysInM), Math.min(11, daysInM), Math.min(16, daysInM), Math.min(21, daysInM), Math.min(26, daysInM), daysInM];
@@ -554,7 +412,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
         dayAvg = Math.round((attendedOnDay / studentsMarkedOnDay.length) * 100);
       }
       const x = 35 + idx * (250 / (uniqueDays.length - 1 || 1));
-      // y goes from 110 (0%) to 20 (100%)
       const y = Math.max(20, Math.min(110, 110 - (dayAvg * 90) / 100));
       return [x, y, dayAvg, dNum];
     });
@@ -581,7 +438,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
     );
   };
 
-  // 100% REAL Dynamic Status Change: updates history[date] and recalculates student stats month-wise cleanly
+  // Real Dynamic Status Change
   const handleQuickStatusChange = async (targetKey, newStatus) => {
     setStudentsList((prev) =>
       prev.map((s, idx) => {
@@ -589,7 +446,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
         if (studentKey === targetKey || s.rollNo === targetKey || s.id === targetKey) {
           const prevStatusOnDate = s.attendanceHistory?.[date] || 'Not Marked';
           
-          // If already set to this status on this date, DO NOT change percentage
           if (prevStatusOnDate === newStatus) {
             return s;
           }
@@ -819,7 +675,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
 
   // Calendar Month Navigation Helpers
   const daysInCalMonth = useMemo(() => new Date(calYear, calMonth + 1, 0).getDate(), [calYear, calMonth]);
-  const startDayOfCalMonth = useMemo(() => new Date(calYear, calMonth, 1).getDay(), [calYear, calMonth]); // 0=Sun, 6=Sat
+  const startDayOfCalMonth = useMemo(() => new Date(calYear, calMonth, 1).getDay(), [calYear, calMonth]);
 
   const handlePrevMonth = () => {
     if (calMonth === 0) {
@@ -841,7 +697,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
 
   return (
     <div className="attendance-page">
-      {/* 1. Header with original layout & classes */}
+      {/* 1. Header */}
       <div className="att-header">
         <div className="att-title-group">
           <div className="att-icon-badge">
@@ -872,9 +728,9 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
         </div>
       </div>
 
-      {/* 2. Top 4 Stat Cards with 100% Real Calculated Percentages */}
+      {/* 2. Top 4 Stat Cards */}
       <div className="att-stats-grid">
-        {/* Card 1: Overall Attendance (Clickable to open Overall Modal) */}
+        {/* Card 1: Overall Attendance */}
         <div
           className="att-stat-card"
           onClick={() => setShowOverallModal(true)}
@@ -911,7 +767,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
           </div>
         </div>
 
-        {/* Card 2: Present Students on Selected Date */}
+        {/* Card 2: Present Students */}
         <div className="att-stat-card">
           <div className="att-stat-info">
             <span className="att-stat-title green">Present Students</span>
@@ -927,7 +783,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
           </div>
         </div>
 
-        {/* Card 3: Absent Students on Selected Date */}
+        {/* Card 3: Absent Students */}
         <div className="att-stat-card">
           <div className="att-stat-info">
             <span className="att-stat-title amber">Absent Students</span>
@@ -943,7 +799,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
           </div>
         </div>
 
-        {/* Card 4: Late Students on Selected Date */}
+        {/* Card 4: Late Students */}
         <div className="att-stat-card">
           <div className="att-stat-info">
             <span className="att-stat-title red">Late Students</span>
@@ -960,10 +816,10 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
         </div>
       </div>
 
-      {/* 3. Original Clean Filters Bar */}
+      {/* 3. Filter Bar */}
       <div className="att-filter-bar">
         <div className="att-filter-controls">
-          {/* Select Date (Opens Calendar Modal or Quick Date Picker) */}
+          {/* Select Date */}
           <div className="att-dropdown-field">
             <label>Select Date</label>
             <button
@@ -1197,14 +1053,14 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
                           </div>
                         </td>
                         <td>{stu.dept}</td>
-                        <td>{stu.semester !== '-' ? stu.semester : '-'}</td>
-                        <td>
+                        <td style={{ textAlign: 'center' }}>{stu.semester !== '-' ? stu.semester : '-'}</td>
+                        <td style={{ textAlign: 'center' }}>
                           <span style={{ fontWeight: 600, color: '#4338ca', fontSize: 11 }}>
                             {stu.section || 'Section A'}
                           </span>
                         </td>
                         <td>{stu.subject}</td>
-                        <td>
+                        <td style={{ textAlign: 'center' }}>
                           <span
                             className={`att-badge-status ${
                               stu.status === 'Present'
@@ -1314,7 +1170,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
             </table>
           </div>
 
-          {/* Table Footer with 10 Items Pagination */}
+          {/* Table Footer with Pagination */}
           <div className="att-table-footer">
             <span>
               Showing {totalCount > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0} to{' '}
@@ -1456,7 +1312,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
             </div>
           </div>
 
-          {/* Card 2: Attendance Trend (Dynamic strictly per marked days) */}
+          {/* Card 2: Attendance Trend */}
           <div className="att-sidebar-card">
             <div className="att-card-head">
               <h3>Attendance Trend</h3>
@@ -1615,7 +1471,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
       </div>
 
       {/* ========================================================================= */}
-      {/* 1. REALISTIC 2026 CALENDAR MODAL WITH MONTH SHIFTING (< Month >) */}
+      {/* 1. REALISTIC 2026 CALENDAR MODAL */}
       {/* ========================================================================= */}
       {showCalendarModal && (
         <div className="att-modal-overlay" onClick={() => setShowCalendarModal(false)}>
@@ -1667,7 +1523,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
             </div>
 
             <div className="att-modal-body" style={{ padding: '20px 24px' }}>
-              {/* Month Shift Header with Left and Right Arrows */}
               <div
                 style={{
                   display: 'flex',
@@ -1726,7 +1581,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
                 </button>
               </div>
 
-              {/* Day Headers (Sun, Mon, Tue, Wed, Thu, Fri, Sat) */}
               <div className="att-cal-grid" style={{ marginBottom: '8px' }}>
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
                   <div key={d} className="att-cal-day-label">
@@ -1735,14 +1589,11 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
                 ))}
               </div>
 
-              {/* Real Calendar Grid with proper Month Offsets */}
               <div className="att-cal-grid">
-                {/* Empty offset cells before day 1 */}
                 {Array.from({ length: startDayOfCalMonth }).map((_, i) => (
                   <div key={`empty-${i}`} style={{ height: '50px', background: '#fafafa', borderRadius: '8px', opacity: 0.3 }} />
                 ))}
 
-                {/* Days of the selected month */}
                 {Array.from({ length: daysInCalMonth }, (_, i) => {
                   const dayNum = i + 1;
                   const dStr = formatDateStr(dayNum, calMonth, calYear);
@@ -1819,7 +1670,7 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
       )}
 
       {/* ========================================================================= */}
-      {/* 2. MARK ATTENDANCE MODAL (CLEAN MANUAL RECORDING) */}
+      {/* 2. MARK ATTENDANCE MODAL */}
       {/* ========================================================================= */}
       {showMarkModal && (
         <div className="att-modal-overlay" onClick={() => setShowMarkModal(false)}>
@@ -1887,7 +1738,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
                 className="att-modal-body"
                 style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}
               >
-                {/* Student Selector */}
                 <div className="att-input-group">
                   <label style={{ display: 'block', fontWeight: 600, fontSize: 12, marginBottom: 6, color: '#1e293b' }}>
                     Select Student *
@@ -1913,7 +1763,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
                   </select>
                 </div>
 
-                {/* 4 Interactive Status Cards */}
                 <div>
                   <label style={{ display: 'block', fontWeight: 600, fontSize: 12, marginBottom: 8, color: '#1e293b' }}>
                     Attendance Status *
@@ -1953,7 +1802,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
                   </div>
                 </div>
 
-                {/* Date & Subject */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="att-input-group">
                     <label style={{ display: 'block', fontWeight: 600, fontSize: 12, marginBottom: 6, color: '#1e293b' }}>
@@ -2112,7 +1960,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
               className="att-modal-body"
               style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}
             >
-              {/* 3 Metric Summary Banner */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                 <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                   <small style={{ color: '#64748b', fontWeight: 600 }}>Total Enrollment</small>
@@ -2131,7 +1978,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
                 </div>
               </div>
 
-              {/* Department Breakdown Matrix */}
               <div>
                 <b style={{ fontSize: 13, color: '#1e293b', display: 'block', marginBottom: '8px' }}>
                   Department-Wise Attendance Performance ({MONTH_NAMES[activeMonth]} {activeYear})
@@ -2258,7 +2104,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
               className="att-modal-body"
               style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}
             >
-              {/* Branch and Section filters for modal */}
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>
@@ -2309,7 +2154,6 @@ export default function AttendancePage({ notify = () => {}, globalDate, setGloba
                 </div>
               </div>
 
-              {/* Students list */}
               <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
                 <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                   <thead>
