@@ -214,31 +214,46 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
   const [importError, setImportError] = useState('');
   const fileInputRef = useRef(null);
 
+  // Multi-Student Selection & Bulk Delete State
+  const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   // Load 78 Students Unified Dataset with Live Shared Attendance
   const loadStudents = (targetDate = globalDate) => {
     try {
+      const deletedIds = getDeletedStudentIds();
       const customSaved = localStorage.getItem('edusuccess_custom_students');
-      if (customSaved) {
-        const customParsed = JSON.parse(customSaved);
-        if (Array.isArray(customParsed) && customParsed.length > 0) {
-          const withLive = customParsed.map((s) => {
-            const attStats = calculateStudentMonthlyAttendance(s, targetDate);
-            const attPct = attStats.pct;
-            const deep = getStudentDeepProfile({ ...s, attendancePct: attPct });
-            return {
-              ...s,
-              riskLevel: deep?.aiSynthesis?.riskLevel || s.riskLevel || 'Low',
-              riskScore: deep?.aiSynthesis?.dropoutProbability || s.riskScore || '20%',
-              attendedLectures: attStats.attendedLectures,
-              totalLectures: attStats.totalLectures,
-              attendance: `${attPct}%`
-            };
-          });
-          setStudents(withLive);
-          return;
-        }
+      
+      let candidateList = [];
+      if (customSaved !== null) {
+        try {
+          const customParsed = JSON.parse(customSaved);
+          if (Array.isArray(customParsed)) {
+            candidateList = customParsed;
+          }
+        } catch (e) {}
+      } else {
+        candidateList = getInitialStudentsWithLiveAttendance(targetDate);
       }
-      setStudents(getInitialStudentsWithLiveAttendance(targetDate));
+
+      // Filter out any explicitly deleted students
+      const remaining = candidateList.filter((s) => !deletedIds.has(s.id));
+
+      const withLive = remaining.map((s) => {
+        const attStats = calculateStudentMonthlyAttendance(s, targetDate);
+        const attPct = attStats.pct;
+        const deep = getStudentDeepProfile({ ...s, attendancePct: attPct });
+        return {
+          ...s,
+          riskLevel: deep?.aiSynthesis?.riskLevel || s.riskLevel || 'Low',
+          riskScore: deep?.aiSynthesis?.dropoutProbability || s.riskScore || '20%',
+          attendedLectures: attStats.attendedLectures,
+          totalLectures: attStats.totalLectures,
+          attendance: `${attPct}%`
+        };
+      });
+
+      setStudents(withLive);
     } catch (e) {
       console.warn('Error loading synchronized students:', e);
       setStudents(getInitialStudentsWithLiveAttendance(targetDate));
@@ -636,6 +651,85 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
     notify('All filters reset to default.');
   };
 
+  // Multi-Selection Handlers
+  const handleToggleSelectStudent = (id) => {
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const isAllFilteredSelected = filteredStudents.length > 0 && filteredStudents.every((s) => selectedStudentIds.has(s.id));
+  const isSomeFilteredSelected = filteredStudents.some((s) => selectedStudentIds.has(s.id)) && !isAllFilteredSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllFilteredSelected) {
+      setSelectedStudentIds((prev) => {
+        const next = new Set(prev);
+        filteredStudents.forEach((s) => next.delete(s.id));
+        return next;
+      });
+    } else {
+      setSelectedStudentIds((prev) => {
+        const next = new Set(prev);
+        filteredStudents.forEach((s) => next.add(s.id));
+        return next;
+      });
+    }
+  };
+
+  const handleSelectEntireRoster = () => {
+    setSelectedStudentIds(new Set(students.map((s) => s.id)));
+    notify(`Selected all ${students.length} students across the entire institution roster.`);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedStudentIds(new Set());
+  };
+
+  const handleConfirmDeleteSelected = () => {
+    if (selectedStudentIds.size === 0) return;
+
+    const countToDelete = selectedStudentIds.size;
+    const currentDeleted = getDeletedStudentIds();
+    selectedStudentIds.forEach((id) => currentDeleted.add(id));
+
+    try {
+      localStorage.setItem('edusuccess_deleted_student_ids', JSON.stringify(Array.from(currentDeleted)));
+    } catch (e) {}
+
+    const remaining = students.filter((s) => !selectedStudentIds.has(s.id));
+    setStudents(remaining);
+
+    try {
+      localStorage.setItem('edusuccess_custom_students', JSON.stringify(remaining));
+      localStorage.setItem('edusuccess_students_list', JSON.stringify(remaining));
+    } catch (e) {}
+
+    window.dispatchEvent(new CustomEvent('edusuccess_attendance_updated'));
+    window.dispatchEvent(new Event('storage'));
+
+    setSelectedStudentIds(new Set());
+    setShowDeleteModal(false);
+    notify(`🗑 Successfully deleted ${countToDelete} student record(s) from roster and storage!`);
+  };
+
+  const handleResetToDefaultRoster = () => {
+    try {
+      localStorage.removeItem('edusuccess_deleted_student_ids');
+      localStorage.removeItem('edusuccess_custom_students');
+      localStorage.removeItem('edusuccess_students_list');
+    } catch (e) {}
+    const default80 = getInitialStudentsWithLiveAttendance(globalDate);
+    setStudents(default80);
+    setSelectedStudentIds(new Set());
+    window.dispatchEvent(new CustomEvent('edusuccess_attendance_updated'));
+    window.dispatchEvent(new Event('storage'));
+    notify('↺ Reset roster back to default 80 institutional students!');
+  };
+
   // Calculations for bottom KPI cards
   const totalCount = students.length;
   const secACount = students.filter((s) => s.section === 'Section A').length;
@@ -661,6 +755,17 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
           <button onClick={() => setShowAddModal(true)}>＋ Add Student</button>
           <button onClick={() => setShowImportModal(true)}>▣ Import from Excel</button>
           <button onClick={handleExportStudents}>⇩ Export</button>
+          <button
+            onClick={handleResetToDefaultRoster}
+            style={{
+              background: '#f8fafc',
+              color: '#475569',
+              border: '1px solid #cbd5e1'
+            }}
+            title="Reset roster back to default 80 students"
+          >
+            ↺ Reset 80 Roster
+          </button>
         </span>
       </div>
 
@@ -795,12 +900,127 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
           <a onClick={handleClearFilters}>Clear All</a>
         </div>
 
+        {/* Bulk Action Controls Bar (When students are selected) */}
+        {selectedStudentIds.size > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              padding: '12px 18px',
+              background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
+              color: '#fff',
+              borderRadius: '12px',
+              marginBottom: '16px',
+              boxShadow: '0 8px 24px -4px rgba(49, 46, 129, 0.35)',
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '24px',
+                  height: '24px',
+                  padding: '0 6px',
+                  borderRadius: '12px',
+                  background: '#6366f1',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontWeight: '700'
+                }}
+              >
+                {selectedStudentIds.size}
+              </span>
+              <b style={{ fontSize: '14px', letterSpacing: '-0.01em' }}>
+                {selectedStudentIds.size} student{selectedStudentIds.size > 1 ? 's' : ''} selected
+              </b>
+              {selectedStudentIds.size < students.length && (
+                <button
+                  onClick={handleSelectEntireRoster}
+                  style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    marginLeft: '8px'
+                  }}
+                >
+                  Select All {students.length} Students
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                onClick={handleClearSelection}
+                style={{
+                  background: 'transparent',
+                  color: '#cbd5e1',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Deselect All
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '7px 16px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)'
+                }}
+              >
+                🗑 Delete Selected ({selectedStudentIds.size})
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Students Data Table (Section column replacing Status) */}
         <table>
           <thead>
             <tr>
+              <th style={{ width: '48px', textAlign: 'center', padding: '12px 8px' }}>
+                <input
+                  type="checkbox"
+                  checked={isAllFilteredSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = isSomeFilteredSelected;
+                  }}
+                  onChange={handleToggleSelectAll}
+                  title="Select all filtered students"
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    cursor: 'pointer',
+                    accentColor: '#4f46e5',
+                    borderRadius: '4px'
+                  }}
+                />
+              </th>
               {[
-                '□',
                 'Enrollment No.',
                 'Student Name',
                 'Department',
@@ -821,13 +1041,32 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
             {paginatedStudents.length === 0 ? (
               <tr>
                 <td colSpan="12" style={{ textAlign: 'center', padding: '35px', color: '#64748b' }}>
-                  No student records matched your current filters.
+                  No student records found. Click <b>"↺ Reset 80 Roster"</b> or <b>"＋ Add Student"</b> to populate records.
                 </td>
               </tr>
             ) : (
               paginatedStudents.map((s) => (
-                <tr key={s.id}>
-                  <td>□</td>
+                <tr
+                  key={s.id}
+                  style={{
+                    background: selectedStudentIds.has(s.id) ? 'rgba(99, 102, 241, 0.05)' : undefined
+                  }}
+                >
+                  <td style={{ width: '48px', textAlign: 'center', padding: '12px 8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedStudentIds.has(s.id)}
+                      onChange={() => handleToggleSelectStudent(s.id)}
+                      title={`Select ${s.name}`}
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        cursor: 'pointer',
+                        accentColor: '#4f46e5',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  </td>
                   <td><b>{s.rollNo}</b></td>
                   <td>
                     <span className="person">{s.initials}</span>
@@ -884,7 +1123,7 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
                       {s.section}
                     </span>
                   </td>
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     <button
                       className="view"
                       title="View Student Analysis"
@@ -894,6 +1133,24 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
                       }}
                     >
                       <Eye />
+                    </button>
+                    <button
+                      title={`Delete ${s.name}`}
+                      onClick={() => {
+                        setSelectedStudentIds(new Set([s.id]));
+                        setShowDeleteModal(true);
+                      }}
+                      style={{
+                        marginLeft: '6px',
+                        border: '1px solid #fecdd3',
+                        background: '#fff1f2',
+                        color: '#e11d48',
+                        borderRadius: '6px',
+                        padding: '5px 8px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Trash2 style={{ width: '13px', height: '13px' }} />
                     </button>
                   </td>
                 </tr>
@@ -2560,6 +2817,108 @@ export default function StudentsPage({ notify = () => {}, globalSearchQuery = ''
                 className="btn-primary-purple"
               >
                 Close Certificate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. BULK DELETE CONFIRMATION MODAL */}
+      {/* ========================================================================= */}
+      {showDeleteModal && (
+        <div className="att-modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div
+            className="att-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '480px',
+              borderRadius: '16px',
+              padding: '24px',
+              background: '#fff',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.22)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+              <div
+                style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '12px',
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '22px'
+                }}
+              >
+                🗑
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
+                  Delete {selectedStudentIds.size} Student{selectedStudentIds.size > 1 ? 's' : ''}?
+                </h3>
+                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                  This action will remove selected student records from active roster and local storage.
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                maxHeight: '160px',
+                overflowY: 'auto',
+                background: '#f8fafc',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '20px',
+                border: '1px solid #e2e8f0'
+              }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '8px' }}>
+                Students to be deleted ({selectedStudentIds.size}):
+              </div>
+              {students
+                .filter((s) => selectedStudentIds.has(s.id))
+                .map((s) => (
+                  <div key={s.id} style={{ fontSize: '12px', color: '#334155', padding: '3px 0' }}>
+                    • <b>{s.rollNo}</b> — {s.name} ({s.dept}, {s.section})
+                  </div>
+                ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '8px',
+                  background: '#f1f5f9',
+                  color: '#475569',
+                  border: 'none',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteSelected}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '8px',
+                  background: '#dc2626',
+                  color: '#fff',
+                  border: 'none',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
+                }}
+              >
+                Yes, Delete ({selectedStudentIds.size})
               </button>
             </div>
           </div>
