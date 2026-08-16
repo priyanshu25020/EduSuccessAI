@@ -1,5 +1,5 @@
 // frontend/src/data/studentsData.js
-// Complete Real Institutional Student Dataset (78 Students Across 5 Departments)
+// Complete Real Institutional Student Dataset (80 Students Across 5 Departments & 4 Sections)
 
 const FIRST_NAMES = [
   'Rahul', 'Sneha', 'Aarav', 'Pooja', 'Karan', 'Anjali', 'Vivek', 'Neha',
@@ -11,7 +11,7 @@ const FIRST_NAMES = [
   'Sameer', 'Jyoti', 'Tarun', 'Ananya', 'Mohit', 'Simran', 'Ashish', 'Komal',
   'Mayank', 'Pallavi', 'Hemant', 'Nisha', 'Chirag', 'Radha', 'Lalit', 'Sapna',
   'Deepak', 'Garima', 'Suraj', 'Vandana', 'Aman', 'Kiran', 'Jay', 'Shikha',
-  'Sandeep', 'Barkha', 'Pankaj', 'Aarti', 'Umesh', 'Rekha'
+  'Sandeep', 'Barkha', 'Pankaj', 'Aarti', 'Umesh', 'Rekha', 'Abhay', 'Brijesh'
 ];
 
 const LAST_NAMES = [
@@ -24,7 +24,7 @@ const LAST_NAMES = [
   'Sinha', 'Chaudhary', 'Gokhale', 'Majumdar', 'Bhardwaj', 'Acharya', 'Dhar', 'Kashyap',
   'Goswami', 'Rastogi', 'Nath', 'Khurana', 'Bakshi', 'Kaul', 'Sethi', 'Trehan',
   'Dhiman', 'Dewan', 'Biswas', 'Chandra', 'Mandal', 'Manna', 'Pramanik', 'Samanta',
-  'Sen', 'Bhattacharya', 'Karmakar', 'Roy', 'Barman', 'Kundu'
+  'Sen', 'Bhattacharya', 'Karmakar', 'Roy', 'Barman', 'Kundu', 'Mali', 'Jain'
 ];
 
 const DEPTS = [
@@ -46,11 +46,12 @@ const AVATAR_POOL = [
   'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'
 ];
 
-export const ALL_78_STUDENTS = Array.from({ length: 78 }, (_, i) => {
+export const ALL_80_STUDENTS = Array.from({ length: 80 }, (_, i) => {
   const deptObj = DEPTS[i % DEPTS.length];
   const rollIndex = String(Math.floor(i / DEPTS.length) + 1).padStart(3, '0');
   const semester = (i % 8) + 1;
-  const section = i % 4 < 2 ? 'Section A' : 'Section B';
+  const sections = ['Section A', 'Section B', 'Section C', 'Section D'];
+  const section = sections[i % sections.length]; // Evenly 20 per section
   const subject = deptObj.subjects[i % deptObj.subjects.length];
   const firstName = FIRST_NAMES[i % FIRST_NAMES.length];
   const lastName = LAST_NAMES[i % LAST_NAMES.length];
@@ -58,9 +59,9 @@ export const ALL_78_STUDENTS = Array.from({ length: 78 }, (_, i) => {
   const rollNo = `${deptObj.prefix}2021${rollIndex}`;
   const id = `STU${1001 + i}`;
 
-  // Default Lecture counts: e.g. 48 total conducted lectures
+  // Default Lecture counts: 48 total conducted lectures
   const totalLectures = 48;
-  const initialAttended = 0; // Default Not Marked / 0 attended until marked
+  const initialAttended = 0;
   const initialPct = 0;
 
   return {
@@ -85,4 +86,5 @@ export const ALL_78_STUDENTS = Array.from({ length: 78 }, (_, i) => {
   };
 });
 
-export default ALL_78_STUDENTS;
+export const ALL_78_STUDENTS = ALL_80_STUDENTS;
+export default ALL_80_STUDENTS;

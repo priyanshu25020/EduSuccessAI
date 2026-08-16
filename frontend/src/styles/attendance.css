@@ -1904,4 +1904,78 @@
   border-color: #cbd5e1 !important;
 }
 
+/* ========================================================
+   MODAL SCROLLING & FIXED HEADER/FOOTER STYLING
+======================================================== */
+.att-modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(11, 21, 59, 0.65) !important;
+  backdrop-filter: blur(4px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  z-index: 9999 !important;
+  animation: fadeIn 0.2s ease !important;
+}
+
+.att-modal-card {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 25px 60px rgba(11, 21, 59, 0.3) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: 88vh !important;
+  width: 100% !important;
+  max-width: 760px !important;
+  overflow: hidden !important;
+}
+
+.att-modal-head {
+  padding: 18px 24px !important;
+  background: linear-gradient(135deg, #f8faff, #edf3ff) !important;
+  border-bottom: 1px solid #dbe6fa !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+
+.att-modal-body {
+  padding: 20px 24px !important;
+  overflow-y: auto !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  scroll-behavior: smooth !important;
+}
+
+.att-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+.att-modal-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.att-modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.att-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.att-modal-foot {
+  padding: 14px 24px !important;
+  background: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+}
+
+
 

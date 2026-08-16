@@ -190,16 +190,21 @@ export default function AttendancePage({ notify = () => {}, globalDate = '15 Aug
       // Lecture-Wise Attendance Calculation:
       // Formula: (Attended Lectures / Total Conducted Lectures) * 100
       const totalLectures = profile.totalLectures || 48;
-
-      // Calculate total attended lectures across all marked dates in this semester/month
       let attendedLecturesCount = 0;
       let totalMarkedLectures = 0;
 
-      Object.entries(studentHistory).forEach(([_, r]) => {
+      // Real-time calculation in Attendance page: Count all anchored previous dates + activeDate's live marked status!
+      Object.entries(studentHistory).forEach(([dateStr, r]) => {
         if (r && r.status && r.status !== 'Not Marked') {
-          totalMarkedLectures += 1;
-          if (r.status === 'Present') attendedLecturesCount += 1;
-          else if (r.status === 'Late') attendedLecturesCount += 0.5;
+          const isAnchored = (anchoredBatches && anchoredBatches[dateStr]?.anchored === true);
+          const isCurrentActiveDate = dateStr === activeDate;
+
+          // In Attendance.jsx, count if previously anchored OR if marked for activeDate in live session
+          if (isAnchored || isCurrentActiveDate) {
+            totalMarkedLectures += 1;
+            if (r.status === 'Present') attendedLecturesCount += 1;
+            else if (r.status === 'Late') attendedLecturesCount += 0.5;
+          }
         }
       });
 
@@ -229,7 +234,7 @@ export default function AttendancePage({ notify = () => {}, globalDate = '15 Aug
         hash: recordHash
       };
     });
-  }, [historyLedger, activeDate, currentBatchAnchor]);
+  }, [historyLedger, activeDate, currentBatchAnchor, anchoredBatches]);
 
   // Real-Time Metric Calculations from All 78 Students for Active Date
   const totalStudentsCount = currentDayStudents.length; // 78
@@ -243,9 +248,9 @@ export default function AttendancePage({ notify = () => {}, globalDate = '15 Aug
   const absentPct = totalStudentsCount > 0 ? ((absentCount / totalStudentsCount) * 100).toFixed(1) : '0.0';
   const latePct = totalStudentsCount > 0 ? ((lateCount / totalStudentsCount) * 100).toFixed(1) : '0.0';
 
-  // Overall Attendance % across all lectures
-  const overallAvgPct = markedCount > 0
-    ? ((presentCount + lateCount * 0.5) / markedCount * 100).toFixed(1)
+  // Overall Attendance % across all lectures (Calculated as cohort turnout across all 78 students)
+  const overallAvgPct = totalStudentsCount > 0
+    ? (((presentCount + lateCount * 0.5) / totalStudentsCount) * 100).toFixed(1)
     : '0.0';
 
   // Filtered Students List with Live Multi-Field Search
@@ -418,10 +423,19 @@ export default function AttendancePage({ notify = () => {}, globalDate = '15 Aug
         network: 'Polygon Amoy'
       };
 
-      setAnchoredBatches((prev) => ({
-        ...prev,
-        [activeDate]: batchData
-      }));
+      setAnchoredBatches((prev) => {
+        const updated = {
+          ...prev,
+          [activeDate]: batchData
+        };
+        try {
+          localStorage.setItem('edusuccess_78_anchored_batches', JSON.stringify(updated));
+        } catch (err) {}
+        return updated;
+      });
+
+      window.dispatchEvent(new CustomEvent('edusuccess_attendance_updated'));
+      window.dispatchEvent(new Event('storage'));
 
       notify(`✅ Attendance for ${activeDate} successfully anchored to Polygon Amoy! All ${markedCount} records are now Verified.`);
     } catch (e) {
@@ -613,7 +627,7 @@ export default function AttendancePage({ notify = () => {}, globalDate = '15 Aug
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <h1>Attendance Management</h1>
               <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe' }}>
-                78 Students Live Sync
+                80 Students Live Sync
               </span>
             </div>
             <p>Track lecture-wise attendance across departments and semesters with real blockchain proof.</p>

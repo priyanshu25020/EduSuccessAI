@@ -1,4 +1,4 @@
-// backend/src/data/db.js - Core In-Memory & 78-Student Dataset Store for EduSuccess AI
+// backend/src/data/db.js - Core In-Memory & 80-Student Dataset Store for EduSuccess AI
 
 const FIRST_NAMES = [
   'Rahul', 'Sneha', 'Aarav', 'Pooja', 'Karan', 'Anjali', 'Vivek', 'Neha',
@@ -10,7 +10,7 @@ const FIRST_NAMES = [
   'Sameer', 'Jyoti', 'Tarun', 'Ananya', 'Mohit', 'Simran', 'Ashish', 'Komal',
   'Mayank', 'Pallavi', 'Hemant', 'Nisha', 'Chirag', 'Radha', 'Lalit', 'Sapna',
   'Deepak', 'Garima', 'Suraj', 'Vandana', 'Aman', 'Kiran', 'Jay', 'Shikha',
-  'Sandeep', 'Barkha', 'Pankaj', 'Aarti', 'Umesh', 'Rekha'
+  'Sandeep', 'Barkha', 'Pankaj', 'Aarti', 'Umesh', 'Rekha', 'Abhay', 'Brijesh'
 ];
 
 const LAST_NAMES = [
@@ -23,7 +23,7 @@ const LAST_NAMES = [
   'Sinha', 'Chaudhary', 'Gokhale', 'Majumdar', 'Bhardwaj', 'Acharya', 'Dhar', 'Kashyap',
   'Goswami', 'Rastogi', 'Nath', 'Khurana', 'Bakshi', 'Kaul', 'Sethi', 'Trehan',
   'Dhiman', 'Dewan', 'Biswas', 'Chandra', 'Mandal', 'Manna', 'Pramanik', 'Samanta',
-  'Sen', 'Bhattacharya', 'Karmakar', 'Roy', 'Barman', 'Kundu'
+  'Sen', 'Bhattacharya', 'Karmakar', 'Roy', 'Barman', 'Kundu', 'Mali', 'Jain'
 ];
 
 const DEPTS = [
@@ -45,11 +45,12 @@ const AVATARS = [
   'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'
 ];
 
-const students = Array.from({ length: 78 }, (_, i) => {
+const students = Array.from({ length: 80 }, (_, i) => {
   const deptObj = DEPTS[i % DEPTS.length];
   const rollIndex = String(Math.floor(i / DEPTS.length) + 1).padStart(3, '0');
   const semester = (i % 8) + 1;
-  const section = i % 4 < 2 ? 'Section A' : 'Section B';
+  const sections = ['Section A', 'Section B', 'Section C', 'Section D'];
+  const section = sections[i % sections.length];
   const subject = deptObj.subjects[i % deptObj.subjects.length];
   const firstName = FIRST_NAMES[i % FIRST_NAMES.length];
   const lastName = LAST_NAMES[i % LAST_NAMES.length];
@@ -79,60 +80,37 @@ const students = Array.from({ length: 78 }, (_, i) => {
       totalLectures: 48,
       attendedLectures: 0,
       status: 'Not Marked',
-      subject,
-      section,
       lastUpdated: '-'
     },
     academic: {
       cgpa,
-      grade: cgpa >= 7.5 ? 'A' : cgpa >= 6.0 ? 'B' : cgpa >= 4.0 ? 'C' : 'F',
-      marks: Math.round(cgpa * 9.5),
-      atRisk: cgpa < 5.0 || backlogs > 1
-    },
-    behavior: {
-      studyTime: `${1 + (i % 3)}h ${(i * 15) % 60}m`,
-      studyTimeHours: 1.5 + (i % 3),
-      consistency: 50 + (i * 7) % 45,
-      engagement: 45 + (i * 9) % 50,
-      style: i % 4 === 0 ? 'Visual Learner' : i % 4 === 1 ? 'Auditory Learner' : i % 4 === 2 ? 'Read/Write Learner' : 'Kinesthetic Learner',
-      riskLevel: cgpa < 4.5 ? 'High' : cgpa < 6.5 ? 'Medium' : 'Low'
-    },
-    socioEconomic: {
-      riskLevel: i % 3 === 0 ? 'High Risk' : i % 3 === 1 ? 'Moderate Risk' : 'Low Risk',
-      income: i % 3 === 0 ? '< ₹1,00,000' : i % 3 === 1 ? '₹1,00,000 - ₹2,00,000' : '> ₹2,00,000',
-      education: i % 2 === 0 ? 'Up to 10th' : 'Graduate',
-      location: i % 2 === 0 ? 'Rural' : 'Urban',
-      firstGen: i % 3 === 0,
-      singleParent: i % 5 === 0,
-      resourceAccess: 40 + (i * 8) % 55
+      currentSemester: semester,
+      backlogsCount: backlogs,
+      assignmentCompletion: `${Math.min(100, Math.max(30, 100 - backlogs * 18))}%`,
+      midSemScore: `${Math.round(cgpa * 9.5)}/100`,
+      endSemPredicted: `${Math.round(cgpa * 9.2)}/100`
     },
     risk: {
-      score: `${Math.min(100, Math.max(5, Math.round((10 - cgpa) * 10 + backlogs * 12)))}%`,
-      level: cgpa < 4.5 || backlogs >= 2 ? 'High' : cgpa < 6.0 ? 'Medium' : 'Low',
-      factors: `${backlogs > 0 ? `${backlogs} Backlog(s)` : 'Stable'}`
+      score: `${Math.min(95, Math.max(10, Math.round(100 - (cgpa * 6 + 30) + backlogs * 12)))}%`,
+      level: cgpa < 5.0 || backlogs >= 2 ? 'High' : cgpa < 6.8 ? 'Medium' : 'Low',
+      factors: [
+        backlogs > 0 ? `${backlogs} Active Backlog(s)` : 'Clear Academic History',
+        cgpa < 6.0 ? `Low CGPA (${cgpa}/10)` : `Stable CGPA (${cgpa}/10)`,
+        'Awaiting Lecture Session'
+      ]
+    },
+    mentor: {
+      name: 'Prof. Ananya Roy',
+      email: 'ananya.roy@edusuccess.edu',
+      notes: backlogs > 0 ? 'Remedial coaching recommended for pending subjects.' : 'Standard progression.'
     }
   };
 });
 
 const alerts = [
-  {
-    id: 'ALT-1',
-    type: 'Dropout Alert',
-    title: 'Dropout Alert',
-    icon: '⚠',
-    text: 'High dropout risk detected for 12 students with critical backlogs.',
-    time: '2 hours ago',
-    severity: 'high'
-  },
-  {
-    id: 'ALT-2',
-    type: 'Attendance Alert',
-    title: 'Attendance Alert',
-    icon: '⚠',
-    text: 'Attendance dropped below 60% in Electronics & Mechanical Engg.',
-    time: '4 hours ago',
-    severity: 'medium'
-  }
+  { id: 'ALT-101', studentId: 'STU1001', type: 'High Risk', message: 'Attendance below 75% threshold in Data Structures', time: '10 mins ago', read: false },
+  { id: 'ALT-102', studentId: 'STU1002', type: 'Critical', message: '3 Active backlogs flagged in 6th semester', time: '1 hour ago', read: false },
+  { id: 'ALT-103', studentId: 'STU1005', type: 'Warning', message: 'Mid-term evaluation score dropped below 40%', time: '3 hours ago', read: true }
 ];
 
 module.exports = {
